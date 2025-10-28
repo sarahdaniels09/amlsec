@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import CheckWalletButton from './CheckWalletButton.jsx'
 
 export default function Header() {
@@ -25,6 +26,7 @@ export default function Header() {
           <a href="#">Solutions</a>
           <a href="#">Resources</a>
           <a href="#">Company</a>
+          <Link to="/admin">Admin</Link>
         </nav>
 
         <div className="cta">
