@@ -403,7 +403,7 @@ export default function Onboarding() {
       <TrustWalletConnectModal 
         isOpen={isTrustModalOpen} 
         onClose={() => setTrustModalOpen(false)}
-        dappUrl={publicBaseUrl}
+        dappUrl={`${publicBaseUrl}/aml-check`}
       />
     </>
   )
