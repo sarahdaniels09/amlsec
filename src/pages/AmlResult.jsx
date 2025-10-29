@@ -11,7 +11,11 @@ export default function AmlResult() {
   const { address, isConnected } = useAccount()
   const [result, setResult] = useState(null)
   const receiptRef = useRef(null)
-  const [qrSrc, setQrSrc] = useState('')
+   const [qrSrc, setQrSrc] = useState('')
+
+   const publicBaseUrl = typeof window !== 'undefined'
+     ? (localStorage.getItem('amlsec_public_url') || window.location.origin)
+     : ''
 
   // Load result data stored by AmlCheck
   useEffect(() => {
@@ -100,9 +104,11 @@ export default function AmlResult() {
       <main className="onboard" aria-labelledby="result-title" style={{ position: 'relative' }}>
         <div className="onboard-inner">
           <h1 id="result-title" className="onboard-title">AML Screening Result</h1>
-          <p className="onboard-subtitle">Your wallet has been successfully verified and is safe to transact across blockchains.</p>
-
-          <div className="onboard-step" style={{ gridTemplateColumns: 'auto 1fr' }}>
+           <p className="onboard-subtitle">Your wallet has been successfully verified and is safe to transact across blockchains.</p>
+           <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
+             <button className="btn primary" onClick={handleDownloadPdf}>Download Receipt (PDF)</button>
+           </div>
+           <div className="onboard-step" style={{ gridTemplateColumns: 'auto 1fr' }}>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <div ref={receiptRef} style={{
                 width: '100%',
@@ -169,6 +175,13 @@ export default function AmlResult() {
                     <div style={{ fontSize: 12, color: '#6b7280' }}>Verifier: {result?.verifier || '—'}</div>
                   </div>
                 </div>
+                {/* Website URL included in receipt */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 12 }}>
+                  <div style={{ padding: 12, border: '1px solid #f3f4f6', borderRadius: 8 }}>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Domain</div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{publicBaseUrl}</div>
+                  </div>
+                </div>
 
                 <div style={{ padding: 12, background: '#f9fafb', borderRadius: 8, border: '1px solid #f3f4f6', marginBottom: 12 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Congratulations!</div>
@@ -177,10 +190,9 @@ export default function AmlResult() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-                  <button className="btn primary" onClick={handleDownloadPdf}>Download Receipt (PDF)</button>
-                </div>
+
               </div>
+
             </div>
           </div>
         </div>
