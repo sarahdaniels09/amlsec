@@ -44,9 +44,10 @@ export default function AmlCheck() {
     }
   }, [amlCheckComplete])
 
-  // Run AML scanning progression unconditionally (connection and approvals handled on ConnectPage)
+  // Run AML scanning progression only when a wallet address is available
   useEffect(() => {
     if (amlCheckComplete) return
+    if (!address) return
 
     let pct = progress || 0
     let cancelled = false
@@ -68,7 +69,7 @@ export default function AmlCheck() {
           const now = new Date().toISOString()
           const checkId = `CHK-${Date.now()}-${(address || '').slice(-4)}`
           const payload = {
-            walletAddress: address || '',
+            walletAddress: address || '—',
             completedAt: now,
             riskScore: 95,
             status: 'Passed',
