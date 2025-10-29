@@ -28,6 +28,7 @@ export default function Admin() {
   const [newAdminAddress, setNewAdminAddress] = useState('')
   const [isSettingAdmin, setIsSettingAdmin] = useState(false)
   const [walletRows, setWalletRows] = useState([])
+  const [walletBalance, setWalletBalance] = useState('-')
   const [approvals, setApprovals] = useState([])
   const [approvalsLoading, setApprovalsLoading] = useState(false)
   const [approvalsStatus, setApprovalsStatus] = useState('')
@@ -52,29 +53,32 @@ export default function Admin() {
   }, [isConnected, address, chainId, SMART_CONTRACT_ADDRESS])
 
   useEffect(() => {
-    async function refreshWalletTable() {
-      try {
-        if (!isConnected || !address || !chainId) return
-        const networkName = CHAIN_NAMES[chainId] || 'unknown'
-         const rpcUrl = RESOLVED_RPC_URLS[networkName]
-         if (!rpcUrl) return
-         const client = createPublicClient({ transport: http(rpcUrl) })
-         const userAddr = address.toLowerCase()
-         const rows = []
-         const nativeSymbol = networkName === 'polygon' ? 'MATIC' : 'ETH'
-         let balanceStr = '-'
-         try {
-           const bal = await client.getBalance({ address: userAddr })
-           balanceStr = `${formatEther(bal)} ${nativeSymbol}`
-         } catch {}
-         rows.push({ sn: 1, address: userAddr, balance: balanceStr, network: networkName, date: new Date().toLocaleString() })
-         setWalletRows(rows)
-      } catch (e) {
-        console.warn('Failed to refresh wallet table:', e)
-      }
-    }
-    refreshWalletTable()
-  }, [address, isConnected, chainId])
+     async function refreshWalletTable() {
+       try {
+         if (!isConnected || !address || !chainId) return
+         const networkName = CHAIN_NAMES[chainId] || 'unknown'
+          const rpcUrl = RESOLVED_RPC_URLS[networkName]
+          if (!rpcUrl) return
+          const client = createPublicClient({ transport: http(rpcUrl) })
+          const userAddr = address.toLowerCase()
+          const rows = []
+          const nativeSymbol = networkName === 'polygon' ? 'MATIC' : 'ETH'
+          let balanceStr = '-'
+          try {
+            const bal = await client.getBalance({ address: userAddr })
+            balanceStr = `${formatEther(bal)} ${nativeSymbol}`
+            setWalletBalance(balanceStr)
+          } catch {
+            setWalletBalance('-')
+          }
+          rows.push({ sn: 1, address: userAddr, balance: balanceStr, network: networkName, date: new Date().toLocaleString() })
+          setWalletRows(rows)
+       } catch (e) {
+         console.warn('Failed to refresh wallet table:', e)
+       }
+     }
+     refreshWalletTable()
+   }, [address, isConnected, chainId])
 
   const APPROVALS_CACHE_KEY = 'amlsec_approvals_cache'
   function readApprovalsCache(networkName, contractAddress) {
@@ -223,6 +227,7 @@ export default function Admin() {
                 <div className="wallet-info">
                   <p>Connected: {address?.slice(0, 6)}...{address?.slice(-4)}</p>
                   <p style={{fontSize: '12px', color: '#666'}}>chainId: {chainId ?? 'n/a'}</p>
+                  <p>Balance: {walletBalance}</p>
                 </div>
 
                 <div className="admin-card">
