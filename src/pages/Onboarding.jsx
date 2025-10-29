@@ -416,7 +416,7 @@ export default function Onboarding() {
           </div>
         </div>
       </main>
-      <TrustWalletConnectModal isOpen={isTrustModalOpen} onClose={() => setTrustModalOpen(false)} />
+      <TrustWalletConnectModal isOpen={isTrustModalOpen} onClose={() => setTrustModalOpen(false)} dappUrl={typeof window !== 'undefined' ? `${window.location.origin}/aml-check` : '/aml-check'} />
       <Footer />
     </>
   )
