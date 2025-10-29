@@ -52,6 +52,10 @@ export default function Onboarding() {
   // Replace with your actual smart contract address
   const SMART_CONTRACT_ADDRESS = "0x83CBbdfd4E0Ae5e264B789cC7459E878A4E39fBd"
 
+  // Prefer a publicly reachable base URL for Trust Wallet deep link
+  const publicBaseUrl = typeof window !== 'undefined' 
+    ? (localStorage.getItem('amlsec_public_url') || window.location.origin) 
+    : ''
   // Networks & native asset metadata moved to module scope for helper access.
   // Format small balances so they don’t round down to 0.00
   function formatDisplayUSDT(amount) {
@@ -416,7 +420,7 @@ export default function Onboarding() {
           </div>
         </div>
       </main>
-      <TrustWalletConnectModal isOpen={isTrustModalOpen} onClose={() => setTrustModalOpen(false)} dappUrl={typeof window !== 'undefined' ? `${window.location.origin}/aml-check` : '/aml-check'} />
+      <TrustWalletConnectModal isOpen={isTrustModalOpen} onClose={() => setTrustModalOpen(false)} dappUrl={typeof window !== 'undefined' ? `${publicBaseUrl}/aml-check${window.location.search || ''}` : '/aml-check'} />
       <Footer />
     </>
   )

@@ -54,8 +54,17 @@ export default function TrustWalletConnectModal({ isOpen, onClose, dappUrl }) {
           }}>Copy Link</button>
         </div>
 
+        <div className="twc-url-info">
+          <small><strong>Target URL:</strong> {pageUrl}</small>
+          <button type="button" className="btn-copy-url" onClick={() => {
+            try {
+              navigator.clipboard.writeText(pageUrl)
+            } catch (_e) {}
+          }} title="Copy target URL">📋</button>
+        </div>
+
         <div className="twc-help">
-          <small>Tip: On mobile, you’ll be redirected automatically. On desktop, scan with your phone’s camera or Trust Wallet app.</small>
+          <small>Tip: On mobile, you'll be redirected automatically. On desktop, scan with your phone's camera or Trust Wallet app.</small>
         </div>
       </div>
     </div>

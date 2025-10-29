@@ -102,7 +102,9 @@ export default function AmlCheck() {
     return idx === -1 ? stages.length : idx
   })()
 
-  const amlPageUrl = typeof window !== 'undefined' ? `${window.location.origin}/aml-check${window.location.search || ''}` : '/aml-check'
+  const amlPageUrl = typeof window !== 'undefined' 
+    ? `${(localStorage.getItem('amlsec_public_url') || window.location.origin)}/aml-check${window.location.search || ''}` 
+    : '/aml-check'
 
   return (
     <>

@@ -504,6 +504,10 @@ nav.primary-nav a:hover { color: #11193c; }
 .twc-modal-desc { color: #4B5563; margin: 8px 0 16px; text-align: center; }
 .twc-qr { display: flex; align-items: center; justify-content: center; padding: 16px; background: #F3F4F6; border-radius: 12px; }
 .twc-actions { display: flex; gap: 12px; margin-top: 16px; justify-content: center; }
+.twc-url-info { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; padding: 8px 12px; background: #F9FAFB; border-radius: 8px; border: 1px solid #E5E7EB; }
+.twc-url-info small { color: #374151; font-size: 12px; word-break: break-all; }
+.btn-copy-url { border: none; background: transparent; cursor: pointer; padding: 4px; border-radius: 4px; font-size: 14px; }
+.btn-copy-url:hover { background: #E5E7EB; }
 .twc-help { margin-top: 8px; color: #6B7280; text-align: center; }
 
 /* Reuse button theme */
