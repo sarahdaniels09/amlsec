@@ -136,12 +136,12 @@ export default function AmlResult() {
 
                 <hr style={{ borderColor: '#f3f4f6', margin: '12px 0' }} />
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13, color: '#6b7280' }}>Wallet Address</div>
-                    <div style={{ fontSize: 15, fontFamily: 'monospace' }}>{result?.walletAddress || (isConnected ? address : '—')}</div>
+                    <div style={{ fontSize: 15, fontFamily: 'monospace', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{result?.walletAddress || (isConnected ? address : '—')}</div>
                   </div>
-                  <div style={{ width: 96, height: 96, border: '1px solid #f3f4f6', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
+                  <div style={{ width: 96, height: 96, border: '1px solid #f3f4f6', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', flexShrink: 0 }}>
                     {qrSrc ? (
                       <img src={qrSrc} alt="Receipt QR" style={{ width: 88, height: 88 }} />
                     ) : (
