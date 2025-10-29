@@ -12,6 +12,9 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
     "@web3modal/wagmi": "^5.1.11",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
+    "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

