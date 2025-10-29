@@ -91,6 +91,9 @@ nav.primary-nav a:hover { color: #11193c; }
   transform-origin: center;
 }
 
+/* Hide mobile CTA on desktop */
+.mobile-cta { display: none; }
+
 @media (max-width: 860px) {
   .header-inner { 
     grid-template-columns: auto 1fr auto; 
@@ -136,7 +139,7 @@ nav.primary-nav a:hover { color: #11193c; }
   .cta { display: none; }
   
   /* Show and style the mobile CTA inside the menu */
-  nav.primary-nav .mobile-cta { margin-top: 8px; }
+  nav.primary-nav .mobile-cta { display: block; margin-top: 8px; }
   nav.primary-nav .mobile-cta .btn { width: 100%; }
 }
 .cta {
