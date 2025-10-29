@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
+import TrustWalletConnectModal from '../components/TrustWalletConnectModal.jsx'
 
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useSwitchChain, useChainId, useDisconnect } from 'wagmi'
@@ -48,6 +49,7 @@ export default function Onboarding() {
   const [debugError, setDebugError] = useState(null)
   const [erc20BalancesByNetwork, setErc20BalancesByNetwork] = useState({})
   const [isCheckingErc20, setIsCheckingErc20] = useState(false)
+  const [isTrustModalOpen, setTrustModalOpen] = useState(false)
 
   // Admin state moved to Admin page
 
@@ -77,8 +79,8 @@ export default function Onboarding() {
   }
 
   function handleConnectTrustWallet() {
-    // Always open our custom Web3Modal on all devices
-    open && open()
+    // Show custom Trust Wallet modal with QR code
+    setTrustModalOpen(true)
   }
 
   function handleCheckWallet() {
@@ -397,6 +399,12 @@ export default function Onboarding() {
       </main>
 
       <Footer />
+      
+      <TrustWalletConnectModal 
+        isOpen={isTrustModalOpen} 
+        onClose={() => setTrustModalOpen(false)}
+        dappUrl={publicBaseUrl}
+      />
     </>
   )
 }
