@@ -649,6 +649,8 @@ nav.primary-nav a:hover { color: #11193c; }
 
 .onboard-step > * { min-width: 0; }
 .onboard-step { max-width: 100%; overflow: hidden; }
+/* Center primary action across both columns on Connect page */
+.onboard-step .aml-center { grid-column: 1 / -1; display: flex; justify-content: center; }
 @media (max-width: 640px) { .onboard-step { grid-template-columns: 1fr; } }
 
 .aml-stages-list, .helper-text, .onboard-step code { overflow-wrap: anywhere; word-break: break-word; }
