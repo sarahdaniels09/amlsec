@@ -123,7 +123,7 @@ export default function AmlResult() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                      <div>
                       <a href="/" className="brand" aria-label="AMLSec Home">
-                          <img src={logo} alt="AMLSec logo" />
+                          <img src={logo} alt="AMLSec logo" style={{ width: '100px' }} />
         
                           </a>
                       </div>
@@ -139,7 +139,7 @@ export default function AmlResult() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13, color: '#6b7280' }}>Wallet Address</div>
-                    <div style={{ fontSize: 15, fontFamily: 'monospace', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{result?.walletAddress || (isConnected ? address : '—')}</div>
+                    <div style={{ fontSize: 13, fontFamily: 'monospace', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{result?.walletAddress || (isConnected ? address : '—')}</div>
                   </div>
                   <div style={{ width: 96, height: 96, border: '1px solid #f3f4f6', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', flexShrink: 0 }}>
                     {qrSrc ? (
