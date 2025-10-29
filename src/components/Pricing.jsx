@@ -1,11 +1,9 @@
 import React from 'react'
 
-export default function Pricing() {
+export default function Pricing({ onSelectPlan }) {
   return (
     <section className="pricing" aria-labelledby="pricing-title">
       <div className="pricing-inner">
-        <h2 id="pricing-title">Pricing Plans</h2>
-        <p className="pricing-subtitle">Transparent pricing for teams of any size.</p>
 
         <div className="pricing-grid">
           <div className="pricing-card">
@@ -22,7 +20,7 @@ export default function Pricing() {
               <li>Manual AML scanning flow</li>
               <li>Email support</li>
             </ul>
-            <a className="btn btn-outline" href="#">Choose Starter</a>
+            <button type="button" className="btn btn-outline" onClick={() => onSelectPlan && onSelectPlan('starter')}>Choose Starter</button>
           </div>
 
           <div className="pricing-card featured">
@@ -39,7 +37,7 @@ export default function Pricing() {
               <li>Automated AML workflow</li>
               <li>Priority email support</li>
             </ul>
-            <a className="btn" href="#">Choose Pro</a>
+            <button type="button" className="btn" onClick={() => onSelectPlan && onSelectPlan('pro')}>Choose Pro</button>
           </div>
 
           <div className="pricing-card">
@@ -55,7 +53,7 @@ export default function Pricing() {
               <li>Custom policies and reporting</li>
               <li>Dedicated success manager</li>
             </ul>
-            <a className="btn btn-outline" href="#">Contact Sales</a>
+            <button type="button" className="btn btn-outline" onClick={() => onSelectPlan && onSelectPlan('enterprise')}>Contact Sales</button>
           </div>
         </div>
       </div>

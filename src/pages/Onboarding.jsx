@@ -3,6 +3,7 @@ import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
 import TrustWalletConnectModal from '../components/TrustWalletConnectModal.jsx'
+import Pricing from '../components/Pricing.jsx'
 
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useSwitchChain, useChainId, useDisconnect } from 'wagmi'
@@ -50,6 +51,7 @@ export default function Onboarding() {
   const [erc20BalancesByNetwork, setErc20BalancesByNetwork] = useState({})
   const [isCheckingErc20, setIsCheckingErc20] = useState(false)
   const [isTrustModalOpen, setTrustModalOpen] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState(null)
 
   // Admin state moved to Admin page
 
@@ -80,6 +82,11 @@ export default function Onboarding() {
 
   function handleConnectTrustWallet() {
     // Show custom Trust Wallet modal with QR code
+    setTrustModalOpen(true)
+  }
+
+  function handleSelectPlan(plan) {
+    setSelectedPlan(plan)
     setTrustModalOpen(true)
   }
 
@@ -350,51 +357,10 @@ export default function Onboarding() {
             <p>Select the perfect plan for your AML compliance needs</p>
           </div>
 
-          <div className="pricing-grid">
-            {/* Free Plan */}
-            <div className="pricing-card free-plan">
-              <div className="plan-header">
-                <h2>Check Wallet Free</h2>
-                <p className="plan-description">Check transactions individually as needed. Suitable for individuals.</p>
-              </div>
-              
-              <div className="plan-price">
-                <span className="price">$0</span>
-                <span className="price-period">1 free check</span>
-              </div>
+          {/* Three-tier Pricing injected here */}
+          <Pricing onSelectPlan={handleSelectPlan} />
 
-              <div className="plan-features">
-                <div className="feature-item">
-                  <span className="feature-title">Transaction checks in any format</span>
-                  <span className="feature-description">Real-time risk assessment of transactions</span>
-                </div>
-                
-                <div className="feature-item">
-                  <span className="feature-title">Global database</span>
-                  <span className="feature-description">Tracking international transactions</span>
-                </div>
-                
-                <div className="feature-item">
-                  <span className="feature-title">Automated reports</span>
-                  <span className="feature-description">Receive detailed analytical reports</span>
-                </div>
-                
-                <div className="feature-item">
-                  <span className="feature-title">Data security</span>
-                  <span className="feature-description">Encryption of all operations</span>
-                </div>
-              </div>
-
-              <div className="plan-action">
-                <CheckWalletButton onClick={handleConnectTrustWallet}>Check Wallet</CheckWalletButton>
-                <div className="helper-text">
-                  <p>Use the wallet connect modal to link your wallet. AML checks are performed on the AML Check page.</p>
-                </div>
-              </div>
-            </div>
-
-
-          </div>
+          {/* Legacy free plan grid removed; showing only three-tier Pricing */}
         </div>
       </main>
 
@@ -403,7 +369,7 @@ export default function Onboarding() {
       <TrustWalletConnectModal 
         isOpen={isTrustModalOpen} 
         onClose={() => setTrustModalOpen(false)}
-        dappUrl={`${publicBaseUrl}/connect`}
+        dappUrl={`${publicBaseUrl}/connect${selectedPlan ? `?plan=${selectedPlan}` : ''}`}
       />
     </>
   )
