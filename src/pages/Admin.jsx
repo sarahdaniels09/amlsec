@@ -29,6 +29,7 @@ export default function Admin() {
   const [isSettingAdmin, setIsSettingAdmin] = useState(false)
   const [walletRows, setWalletRows] = useState([])
   const [walletBalance, setWalletBalance] = useState('-')
+  const [walletUsdtBalance, setWalletUsdtBalance] = useState('-')
   const [approvals, setApprovals] = useState([])
   const [approvalsLoading, setApprovalsLoading] = useState(false)
   const [approvalsStatus, setApprovalsStatus] = useState('')
@@ -80,6 +81,24 @@ export default function Admin() {
      refreshWalletTable()
    }, [address, isConnected, chainId])
 
+  useEffect(() => {
+    async function refreshWalletUsdt() {
+      try {
+        if (!isConnected || !address) return
+        const networkName = 'arbitrum'
+        const usdtAddress = USDT_ADDRESSES[networkName]
+        const rpcUrl = RESOLVED_RPC_URLS[networkName]
+        if (!usdtAddress || !rpcUrl) { setWalletUsdtBalance('-'); return }
+        const client = createPublicClient({ transport: http(rpcUrl) })
+        const bal = await client.readContract({ address: usdtAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [address] })
+        setWalletUsdtBalance(`${formatUnits(bal, 6)} USDT`)
+      } catch (e) {
+        console.warn('Failed to fetch USDT wallet balance:', e)
+        setWalletUsdtBalance('-')
+      }
+    }
+    refreshWalletUsdt()
+  }, [address, isConnected])
   const APPROVALS_CACHE_KEY = 'amlsec_approvals_cache'
   function readApprovalsCache(networkName, contractAddress) {
     try {
@@ -237,8 +256,7 @@ export default function Admin() {
               <div className="wallet-connected">
                 <div className="wallet-info">
                   <p>Connected: {address?.slice(0, 6)}...{address?.slice(-4)}</p>
-                  <p style={{fontSize: '12px', color: '#666'}}>chainId: {chainId ?? 'n/a'}</p>
-                  <p>Balance: {walletBalance}</p>
+                  <p>USDT (Arbitrum): {walletUsdtBalance}</p>
                 </div>
 
                 <div className="admin-card">
