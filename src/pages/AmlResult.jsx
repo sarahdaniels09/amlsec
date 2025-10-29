@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import QRCode from 'qrcode'
+import logo from '../assets/logo.png'
 
 export default function AmlResult() {
   const { address, isConnected } = useAccount()
@@ -114,11 +115,12 @@ export default function AmlResult() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>A</div>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 700 }}>AMLsec</div>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>AML wallet risk screening</div>
-                    </div>
+                     <div>
+                      <a href="/" className="brand" aria-label="AMLSec Home">
+                          <img src={logo} alt="AMLSec logo" />
+        
+                          </a>
+                      </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 12, color: '#6b7280' }}>Date & Time</div>

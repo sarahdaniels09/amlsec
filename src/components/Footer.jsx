@@ -9,7 +9,7 @@ export default function Footer() {
           <div className="footer-brand">
             <a href="/" className="brand" aria-label="AMLSec Home">
               <img src={logo} alt="AMLSec logo" />
-              <span className="name">AMLSEC</span>
+             
             </a>
             <p className="footer-desc">KYC/AML and crypto compliance toolkit made to be fast, accurate, and easy to use.</p>
           </div>
