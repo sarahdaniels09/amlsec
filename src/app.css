@@ -132,10 +132,17 @@ nav.primary-nav a:hover { color: #11193c; }
     border-bottom: none;
   }
   
-  .cta {
+  /* Hide desktop CTA on mobile */
+  .cta { display: none; }
+  
+  /* Show and style the mobile CTA inside the menu */
+  nav.primary-nav .mobile-cta { margin-top: 8px; }
+  nav.primary-nav .mobile-cta .btn { width: 100%; }
+}
+.cta {
     justify-self: end;
   }
-}
+
 
 .hero {
   padding: 64px 24px 80px;

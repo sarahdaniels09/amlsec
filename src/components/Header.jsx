@@ -34,7 +34,12 @@ export default function Header() {
           <a href="#">Solutions</a>
           <a href="#">Resources</a>
           <a href="#">Company</a>
-          <Link to="/admin">Admin</Link>
+         {/*  <Link to="/admin">Admin</Link> */}
+
+          {/* Mobile-only Check Wallet inside toggle */}
+          <div className="mobile-cta">
+            <CheckWalletButton variant="default" />
+          </div>
         </nav>
 
         <div className="cta">
