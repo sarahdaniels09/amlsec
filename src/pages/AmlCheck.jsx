@@ -9,8 +9,7 @@ export default function AmlCheck() {
   const liveChainId = useChainId()
 
   // Persisted AML completion state
-  const initialAmlCheck = (() => { try { return localStorage.getItem('amlsec_amlCheck') === 'true' } catch { return false } })()
-  const [amlCheckComplete, setAmlCheckComplete] = useState(initialAmlCheck)
+  const [amlCheckComplete, setAmlCheckComplete] = useState(false)
 
   const settings = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('amlsec_settings') || '{}') } catch { return {} }
