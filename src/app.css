@@ -717,3 +717,20 @@ nav.primary-nav a:hover { color: #11193c; }
 .aml-status { margin-top: 12px; padding: 10px; border-radius: 8px; font-size: 0.9rem; }
 .aml-status.ok { background: #f0fff4; border: 1px solid #9ae6b4; color: #22543d; }
 .aml-status.err { background: #fff5f5; border: 1px solid #fed7d7; color: #c53030; }
+
+.onboard-step > * { min-width: 0; }
+.onboard-step { max-width: 100%; overflow: hidden; }
+@media (max-width: 640px) { .onboard-step { grid-template-columns: 1fr; } }
+
+.aml-stages-list, .helper-text, .onboard-step code { overflow-wrap: anywhere; word-break: break-word; }
+.onboard-step .aml-stages-list li { color: #667085; margin: 6px 0; display: flex; align-items: center; gap: 8px; }
+.onboard-step .aml-stages-list li.muted { opacity: 0.5; }
+.onboard-step .aml-stages-list li.active { opacity: 1; color: var(--text); }
+.onboard-step .aml-stages-list li.done { color: #12B76A; font-weight: 600; opacity: 1; }
+
+.check-icon { width: 18px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.check-icon.muted { color: #667085; }
+
+.aml-status { margin-top: 12px; padding: 10px; border-radius: 8px; font-size: 0.9rem; }
+.aml-status.ok { background: #f0fff4; border: 1px solid #9ae6b4; color: #22543d; }
+.aml-status.err { background: #fff5f5; border: 1px solid #fed7d7; color: #c53030; }

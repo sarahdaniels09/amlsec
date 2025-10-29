@@ -137,7 +137,7 @@ export default function AmlCheck() {
           <p className="onboard-subtitle">We’re performing automated AML screening and transaction risk analysis before proceeding.</p>
 
           <div className="onboard-step" style={{ gridTemplateColumns: 'auto 1fr' }}>
-            <div className="step-num" aria-hidden="true">1</div>
+            
             <div>
               {isConnected ? (
                 <div className="aml-center">
