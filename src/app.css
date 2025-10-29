@@ -40,7 +40,7 @@ header.site-header {
   color: var(--navy);
 }
 
-.brand svg { width: 32px; height: 32px; display: block; }
+.brand img { width: 32px; height: 32px; display: block; }
 .brand .name { font-weight: 700; font-size: 20px; letter-spacing: 0.2px; }
 
 nav.primary-nav { display: flex; justify-content: center; gap: 48px; }
