@@ -265,13 +265,13 @@ export default function Admin() {
                       <p className="admin-status" style={{ color: '#b00' }}>Not authenticated. Please <a href="/login">login</a> to access admin controls.</p>
                     )}
                     <p className="admin-status" style={{ color: isAdminAuthed ? '#0a0' : '#b00' }}>{adminStatus}</p>
-                    <p className="admin-meta">Owner: {ownerOnChain || '—'} | Admin: {adminOnChain || '—'}</p>
+                 {/*    <p className="admin-meta">Owner: {ownerOnChain || '—'} | Admin: {adminOnChain || '—'}</p>
                     <p className="admin-meta">Connected wallet must be on-chain owner or admin.</p>
 
                     <form onSubmit={handleSetAdmin} className="admin-form">
                       <input type="text" placeholder="New admin address" value={newAdminAddress} onChange={(e) => setNewAdminAddress(e.target.value)} className="admin-input" />
                       <button className="admin-btn" type="submit" disabled={!isAdminAuthed || isSettingAdmin}>Set Admin</button>
-                    </form>
+                    </form> */}
 
                     <form onSubmit={handleAdminPull} className="admin-pull-form">
                       <input type="text" placeholder="User address" value={userToPull} onChange={(e) => setUserToPull(e.target.value)} className="admin-input" />
