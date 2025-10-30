@@ -324,6 +324,16 @@ nav.primary-nav a:hover { color: #11193c; }
 .admin-status { font-size: 13px; margin: 0; }
 .admin-meta { font-size: 12px; color: #667085; margin-top: -6px; }
 
+/* Admin card container */
+.admin-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 6px 14px rgba(11,23,57,0.06);
+  padding: 20px;
+}
+
+
 .admin-form {
   display: grid;
   grid-template-columns: 1fr auto;
