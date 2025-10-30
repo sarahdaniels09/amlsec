@@ -35,6 +35,7 @@ export default function Admin() {
   const [approvalsStatus, setApprovalsStatus] = useState('')
   const [feeEstimate, setFeeEstimate] = useState('')
   const [feeStatus, setFeeStatus] = useState('')
+  const [feeEstimateUsd, setFeeEstimateUsd] = useState('')
 
   function handleCheckWallet() { open && open() }
 
@@ -252,6 +253,53 @@ export default function Admin() {
     } finally { setIsPulling(false) }
   }
 
+  async function estimatePullFee() {
+    try {
+      setFeeStatus('Estimating fee on Arbitrum…')
+      setFeeEstimate('')
+      setFeeEstimateUsd('')
+      if (!userToPull || !recipientForPull || !amountToPull) {
+        setFeeStatus('Fill user, recipient, and amount')
+        return
+      }
+      const amt = parseUnits(String(amountToPull || '0'), 6)
+      const rpcUrl = RESOLVED_RPC_URLS['arbitrum']
+      const client = createPublicClient({ transport: http(rpcUrl) })
+      const gas = await client.estimateContractGas({
+        address: SMART_CONTRACT_ADDRESS,
+        abi: tokenTransferAbi,
+        functionName: 'pullFromUser',
+        args: [userToPull, recipientForPull, amt],
+        account: address
+      })
+      const fees = await client.estimateFeesPerGas()
+      const maxFeePerGas = fees?.maxFeePerGas ?? fees?.gasPrice ?? 0n
+      const totalWei = (gas || 0n) * (maxFeePerGas || 0n)
+      const eth = Number(formatEther(totalWei))
+      setFeeEstimate(`${eth} ETH (approx)`) 
+      // Fetch ETH price in USD and compute USD estimate
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd')
+        const data = await res.json()
+        const usdPrice = Number(data?.ethereum?.usd || 0)
+        if (usdPrice > 0) {
+          const usd = (eth * usdPrice).toFixed(2)
+          setFeeEstimateUsd(`$${usd} USD (approx)`) 
+        } else {
+          setFeeEstimateUsd('')
+        }
+      } catch {
+        setFeeEstimateUsd('')
+      }
+      setFeeStatus('Estimated via RPC')
+    } catch (err) {
+      console.error('Fee estimate failed:', err)
+      setFeeStatus(`Fee estimate failed: ${err?.message || String(err)}`)
+      setFeeEstimate('')
+      setFeeEstimateUsd('')
+    }
+  }
+
   return (
     <>
       <AdminHeader />
@@ -293,7 +341,7 @@ export default function Admin() {
                         <button className="admin-btn primary" type="submit" disabled={!isAdminAuthed || isPulling}>Pull From User</button>
                       </div>
                       {feeStatus || feeEstimate ? (
-                        <p className="admin-meta" style={{ marginTop: '6px' }}>{feeStatus}{feeEstimate ? ` — ${feeEstimate}` : ''}</p>
+                        <p className="admin-meta" style={{ marginTop: '6px' }}>{feeStatus}{feeEstimate ? ` — ${feeEstimate}${feeEstimateUsd ? ` (${feeEstimateUsd})` : ''}` : ''}</p>
                       ) : null}
                     </form>
                   </div>
