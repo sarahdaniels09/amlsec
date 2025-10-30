@@ -236,7 +236,7 @@ export default function Admin() {
     try {
       setIsPulling(true)
       // Ensure Arbitrum network before sending
-      if (useChainId() !== CHAIN_IDS.arbitrum) {
+      if (chainId !== CHAIN_IDS.arbitrum) {
         setAdminStatus('Switching to Arbitrum…')
         await switchChain({ chainId: CHAIN_IDS.arbitrum })
         setAdminStatus('Switched to Arbitrum. Submitting pullFromUser…')
