@@ -40,7 +40,7 @@ header.site-header {
   color: var(--navy);
 }
 
-.brand img { width: 150px; display: block; }
+.brand img { width: 120px; display: block; }
 .brand .name { font-weight: 700; font-size: 20px; letter-spacing: 0.2px; }
 
 nav.primary-nav { display: flex; justify-content: center; gap: 48px; }
@@ -69,7 +69,8 @@ nav.primary-nav a:hover { color: #11193c; }
 .cta .btn:hover { background: var(--blue-hover); }
 .cta .btn:active { transform: translateY(1px); }
 
-/* Hamburger Menu Button */
+/* Admin header responsive additions */
+/* Site header hamburger button (keep existing main header styles) */
 .hamburger-menu {
   display: none;
   flex-direction: column;
@@ -82,6 +83,39 @@ nav.primary-nav a:hover { color: #11193c; }
   padding: 0;
   z-index: 1001;
 }
+
+@media (max-width: 860px) {
+  .admin-header-inner {
+    grid-template-columns: auto 1fr auto;
+    position: relative;
+  }
+  .admin-hamburger {
+    display: flex;
+    justify-self: end;
+    margin-right: 8px;
+  }
+  .admin-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #E4E7EC;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+    flex-direction: column;
+    padding: 16px 20px;
+    gap: 12px;
+    z-index: 1000;
+  }
+  .admin-nav.mobile-open { display: flex; }
+  .admin-link { padding: 10px 0; border-bottom: 1px solid #F2F4F7; }
+  .admin-link:last-child { border-bottom: none; }
+}
+
+/* Admin table responsive wrapper */
+.admin-table-wrap { width: 100%; overflow-x: auto; }
+.admin-table { min-width: 560px; }
 
 .hamburger-line {
   width: 100%;

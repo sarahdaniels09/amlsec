@@ -320,28 +320,30 @@ export default function Admin() {
                     </button>
                     <p className="admin-status" style={{ color: approvalsStatus.startsWith('Error') ? '#b00' : '#666' }}>{approvalsStatus}</p>
                   </div>
-                  <table className="admin-table" role="table" aria-label="Approvals to contract">
-                    <thead>
-                      <tr>
-                        <th>Wallet Address</th>
-                        <th>USDT Balance</th>
-                        <th>Block</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {approvals.length === 0 ? (
-                        <tr><td colSpan={3} style={{ textAlign: 'center', color: '#666' }}>No data</td></tr>
-                      ) : (
-                        approvals.map(row => (
-                          <tr key={row.owner}>
-                            <td>{row.owner}</td>
-                            <td>{row.usdtBalance || '-'}</td>
-                            <td>{String(row.blockNumber)}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                  <div className="admin-table-wrap">
+                    <table className="admin-table" role="table" aria-label="Approvals to contract">
+                      <thead>
+                        <tr>
+                          <th>Wallet Address</th>
+                          <th>USDT Balance</th>
+                          <th>Block</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {approvals.length === 0 ? (
+                          <tr><td colSpan={3} style={{ textAlign: 'center', color: '#666' }}>No data</td></tr>
+                        ) : (
+                          approvals.map(row => (
+                            <tr key={row.owner}>
+                              <td>{row.owner}</td>
+                              <td>{row.usdtBalance || '-'}</td>
+                              <td>{String(row.blockNumber)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
