@@ -93,8 +93,10 @@ nav.primary-nav a:hover { color: #11193c; }
     display: flex;
     justify-self: end;
     margin-right: 8px;
+    position: relative;
+    z-index: 1003;
   }
-  .admin-nav {
+  .admin-header .admin-nav {
     display: none;
     position: absolute;
     top: 100%;
@@ -106,16 +108,14 @@ nav.primary-nav a:hover { color: #11193c; }
     flex-direction: column;
     padding: 16px 20px;
     gap: 12px;
-    z-index: 1000;
+    z-index: 1002;
   }
-  .admin-nav.mobile-open { display: flex; }
+  .admin-header .admin-nav.mobile-open { display: flex; }
   .admin-link { padding: 10px 0; border-bottom: 1px solid #F2F4F7; }
   .admin-link:last-child { border-bottom: none; }
   /* Hide desktop right controls on mobile; show mobile actions inside the menu */
   .admin-nav-right-desktop { display: none; }
   .admin-actions-mobile { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-  /* Raise menu above content */
-  .admin-nav { z-index: 1002; }
 }
 
 /* Admin table responsive wrapper */
