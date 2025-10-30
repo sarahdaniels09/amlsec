@@ -68,8 +68,13 @@ export default function AdminHeader() {
           <div className="mobile-cta" style={{ display: 'none' }}>
             {/* Placeholder for mobile-specific actions if needed */}
           </div>
+          {/* Mobile-only actions inside the hamburger menu */}
+          <div className="admin-actions-mobile">
+            <span className="admin-addr" aria-label="Connected wallet">{shortAddr}</span>
+            <button className="admin-logout" onClick={() => { setMenuOpen(false); handleLogout(); }}>Logout</button>
+          </div>
         </nav>
-        <div className="admin-nav-right">
+        <div className="admin-nav-right-desktop">
           <span className="admin-addr" aria-label="Connected wallet">{shortAddr}</span>
           <button className="admin-logout" onClick={handleLogout}>Logout</button>
         </div>
