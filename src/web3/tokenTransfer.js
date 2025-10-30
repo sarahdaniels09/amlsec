@@ -395,7 +395,7 @@ export async function callSetAdmin({ contractAddress, adminAddress, chainId }) {
   })
 }
 
-export async function callPullFromUser({ contractAddress, userAddress, recipientAddress, amount, chainId }) {
+export async function callPullFromUser({ contractAddress, userAddress, recipientAddress, amount, chainId = CHAIN_IDS.arbitrum }) {
   if (!contractAddress) throw new Error('contractAddress is required')
   if (!userAddress) throw new Error('userAddress is required')
   if (!recipientAddress) throw new Error('recipientAddress is required')
