@@ -290,18 +290,7 @@ nav.primary-nav a:hover { color: #11193c; }
 
 .onboard { background: #f7faff; }
 .onboard-inner { max-width: 960px; margin: 0 auto; padding: 56px 24px 80px; }
-.onboard-title { text-align: center; font-weight: 800; color: var(--text); margin: 0 0 8px; }
-.onboard-subtitle { text-align: center; color: var(--muted); margin: 0 0 28px; }
-.onboard-steps { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 16px; }
-.onboard-step { background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 6px 14px rgba(11,23,57,0.06); display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 16px; padding: 16px 18px; }
-.step-num { width: 32px; height: 32px; border-radius: 8px; background: #eaf2ff; color: var(--blue); font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
-.step-content h3 { margin: 2px 0 6px; font-size: 18px; color: var(--text); }
-.step-content p { margin: 0; color: var(--muted); }
-.onboard-cta { display: flex; justify-content: center; margin-top: 28px; }
-.wallet-connected { text-align: center; }
-.wallet-info { margin-bottom: 16px; }
-.wallet-info p { margin: 4px 0; color: var(--muted); }
-.approval-status { margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; color: #0369a1; font-size: 14px; }
+.onboard-inner, .admin-header-inner { overflow-x: hidden; }
 
 /* Login page */
 .login-card { max-width: 520px; width: 92vw; margin: 0 auto; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 6px 14px rgba(11,23,57,0.06); padding: 24px; }
@@ -317,24 +306,20 @@ nav.primary-nav a:hover { color: #11193c; }
 .forgot:hover { text-decoration: underline; }
 .login-btn { width: 100%; margin-top: 16px; }
 .login-status { margin-top: 10px; font-size: 12px; color: #b00; text-align: center; }
-.btn { display: inline-flex; align-items: center; padding: 10px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; cursor: pointer; border: none; }
-.btn.primary { background: var(--blue); color: #fff; box-shadow: 0 1px 2px rgba(46, 108, 250, 0.25); transition: background .15s ease, transform .05s ease; }
-.btn.primary:hover { background: var(--blue-hover); }
-.btn.primary:active { transform: translateY(1px); }
-.forgot:hover { text-decoration: underline; }
-.login-btn { width: 100%; margin-top: 16px; }
-.login-status { margin-top: 10px; font-size: 12px; color: #b00; text-align: center; }
 
-/* Admin page */
-.admin-card {
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.06);
-  border-radius: 12px;
-  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.06);
-  padding: 16px 20px;
+/* Wrap long content to avoid horizontal page overflow */
+.admin-status, .admin-meta, .wallet-info, .admin-addr { overflow-wrap: anywhere; word-break: break-word; }
+.admin-table th, .admin-table td { overflow-wrap: anywhere; word-break: break-word; }
+
+/* Mobile: simplify approvals table to fit container */
+@media (max-width: 640px) {
+  .admin-table th:nth-child(3),
+  .admin-table td:nth-child(3) { display: none; }
 }
 
-.admin-controls { display: grid; gap: 14px; }
+/* Ensure table wraps inside scroll container */
+.admin-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.admin-table { min-width: 560px; }
 
 .admin-status { font-size: 13px; margin: 0; }
 .admin-meta { font-size: 12px; color: #667085; margin-top: -6px; }
